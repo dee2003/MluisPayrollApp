@@ -6,16 +6,15 @@ export interface User {
   role: 'foreman' | 'supervisor' | 'project_engineer' | 'admin';
 }
 
-// These interfaces now include an 'hours' field for the foreman to input
 export interface EmployeeWorkLog {
   first_name: string;
   last_name: string;
-  hours?: number; // Optional, as it will be added by the foreman
+  hours?: number;
 }
 
 export interface EquipmentWorkLog {
   name: string;
-  hours?: number; // Optional, as it will be added by the foreman
+  hours?: number;
 }
 
 interface JobData {
@@ -23,26 +22,31 @@ interface JobData {
   phase_codes: string[];
 }
 
-interface CrewData {
+// --- FIX: Add missing fields here ---
+interface TimesheetData {
+  job_name: string;
+  job: JobData;
+  project_engineer: string;
+  location: string;
+  
+  // Environmental data
+  time_of_day?: string;
+  weather?: string;
+  temperature?: string;
+  shift?: string;
+
+  // Crew data
   employees: EmployeeWorkLog[];
   equipment: EquipmentWorkLog[];
   materials: { name: string }[];
   vendors: { name: string }[];
 }
 
-interface TimesheetData extends CrewData {
-  job_name: string;
-  job: JobData;
-  time_of_day: string;
-  weather: string;
-  temperature: string;
-  location: string;
-  project_engineer: string;
-}
-
+// --- FIX: Add foreman_name here ---
 export interface Timesheet {
   id: number;
   foreman_id: number;
+  foreman_name: string; // Add foreman_name to the top level
   date: string;
   data: TimesheetData;
   status: 'Pending' | 'Submitted' | 'Approved' | 'Rejected'; 

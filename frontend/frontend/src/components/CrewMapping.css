@@ -1,0 +1,380 @@
+:root {
+    --clean-bg: #f9fbfd;
+    --clean-card-bg: #ffffff;
+    --clean-primary: #3d5a80;
+    --clean-accent: #dce4f0;
+    --clean-highlight: #38a3a5;
+    --clean-success: #38a3a5;
+    --clean-text: #293241;
+    --clean-medium: #8d99ae;
+    --clean-shadow: 0 6px 15px rgba(41, 50, 65, 0.07);
+    --clean-radius: 12px;
+}
+
+body {
+    background-color: var(--clean-bg);
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    color: var(--clean-text);
+}
+
+/* --- Foreman Selection Card --- */
+.foreman-selection-card {
+    background-color: var(--clean-bg);
+    padding: 25px;
+    border-radius: var(--clean-radius);
+    margin-bottom: 20px;
+    border: 1px solid var(--clean-accent);
+}
+
+.section-title {
+    color: var(--clean-primary);
+    font-size: 1.4rem;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.foreman-selection-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.foreman-selection-list li {
+    cursor: pointer;
+    padding: 12px 20px;
+    border: 2px solid var(--clean-accent);
+    border-radius: 6px;
+    background-color: var(--clean-card-bg);
+    color: var(--clean-primary);
+    font-weight: 600;
+    transition: all 0.2s ease-in-out;
+}
+
+.foreman-selection-list li:hover {
+    border-color: var(--clean-highlight);
+    color: var(--clean-highlight);
+}
+
+.foreman-selection-list li.active-foreman {
+    border-color: var(--clean-highlight);
+    background-color: var(--clean-highlight);
+    color: var(--clean-card-bg);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(238, 108, 77, 0.3);
+}
+
+.foreman-selection-list.disabled li {
+    cursor: not-allowed;
+    opacity: 0.7;
+    background-color: var(--clean-accent);
+}
+
+.foreman-selection-list.disabled li.active-foreman {
+    opacity: 1;
+}
+
+/* --- MODAL --- */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(41, 50, 65, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  width: 90%;
+  max-width: 700px;
+  background-color: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.modal-content.large {
+    max-width: 1100px;
+}
+
+/* Header */
+.modal-header {
+  flex-shrink: 0;
+  padding: 20px 25px;
+  border-bottom: 1px solid var(--clean-accent);
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 1.6rem;
+    color: var(--clean-primary);
+    font-weight: 700;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    font-weight: 300;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--clean-medium);
+    transition: color 0.2s;
+}
+
+.btn-close:hover {
+    color: var(--clean-text);
+}
+
+/* --- Modal Body --- */
+.modal-body {
+    flex-grow: 1; /* Take remaining space between header & footer */
+    overflow-y: auto;
+    padding: 20px;
+}
+
+/* --- Resource Grid --- */
+.resource-assignment-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 25px;
+}
+
+/* --- Resource Card --- */
+.resource-card-section {
+    background-color: var(--clean-bg);
+    border: 1px solid var(--clean-accent);
+    padding: 20px;
+    border-radius: var(--clean-radius);
+    display: flex;
+    flex-direction: column;
+    max-height: 400px; /* Prevent cards from growing too tall */
+    overflow: hidden;
+}
+
+.resource-card-title {
+    color: var(--clean-primary);
+    font-size: 1.2rem;
+    font-weight: 700;
+    border-bottom: 2px solid var(--clean-accent);
+    padding-bottom: 10px;
+    margin-top: 0;
+    margin-bottom: 15px;
+}
+
+.resource-item-list {
+    overflow-y: auto;
+    flex-grow: 1; /* Fill remaining card height */
+    max-height: 100%;
+    padding-right: 6px;
+}
+
+.resource-item-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.resource-item-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.resource-item-list::-webkit-scrollbar-thumb {
+  background: var(--clean-accent);
+  border-radius: 4px;
+}
+
+.resource-item-list::-webkit-scrollbar-thumb:hover {
+  background: #c7d2e3;
+}
+
+/* --- Resource Items --- */
+.toggle-resource-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-radius: 6px;
+    margin-bottom: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s, transform 0.15s, box-shadow 0.2s;
+    background-color: var(--clean-card-bg);
+    border: 1px solid var(--clean-accent);
+}
+
+.toggle-resource-item:not(.disabled-resource):hover {
+    background-color: #fdfdff;
+    transform: translateX(4px);
+    border-color: var(--clean-medium);
+}
+
+.assignment-status-icon {
+    font-weight: 800;
+    font-size: 1rem;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    color: var(--clean-medium);
+    border: 2px solid var(--clean-accent);
+}
+
+.toggle-resource-item.assigned-resource {
+    background-color: var(--clean-success);
+    color: white;
+    font-weight: 500;
+    border-color: var(--clean-success);
+}
+
+.assigned-resource .assignment-status-icon {
+    background-color: white;
+    color: var(--clean-success);
+    border-color: white;
+    transform: scale(1.1);
+}
+
+.toggle-resource-item.disabled-resource {
+    background-color: #f1f3f5;
+    color: var(--clean-medium);
+    cursor: not-allowed;
+    text-decoration: line-through;
+    opacity: 0.8;
+}
+
+.disabled-resource .assignment-status-icon {
+    color: var(--clean-medium);
+    background-color: var(--clean-accent);
+    border-color: var(--clean-accent);
+}
+
+/* --- Modal Actions/Footer --- */
+.modal-actions {
+  flex-shrink: 0;
+  padding: 16px 25px;
+  border-top: 1px solid #e0e0e0;
+  background-color: #f9f9f9;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+.btn-save-cta {
+    display: block;
+    width: 100%;
+    padding: 16px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--clean-card-bg);
+    background-color: var(--clean-highlight);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    box-shadow: 0 4px 10px rgba(238, 108, 77, 0.3);
+}
+
+.btn-save-cta:hover {
+    background-color: #215c5d;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(238, 108, 77, 0.4);
+}
+/* --- Fix for the Job & Phases Modal --- */
+
+/* Use .admin-layout to scope these styles and avoid conflicts */
+.admin-layout > .modal .modal-content {
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  max-width: 550px;
+  background-color: #ffffff; /* Explicitly set background */
+}
+
+/* Scrollable body for the job phases modal */
+.admin-layout .modal-body-scrollable {
+  overflow-y: auto;
+  padding: 1rem;
+  flex-grow: 1;
+}
+/* Scrollable container for the list of phases */
+.admin-layout .phases-table-wrapper {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+/* Footer/actions area for the modal, scoped to avoid conflict */
+.admin-layout .modal-actions {
+  padding: 1rem;
+  border-top: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  background-color: #f9f9f9;
+}
+/* --- Modal Size Variants --- */
+.modal-content.small {
+    max-width: 400px;
+}
+
+.modal-content.medium {
+    max-width: 700px;
+}
+
+.modal-content.large {
+    max-width: 1100px;
+}
+.form-actions {
+    padding: 20px 25px;
+    border-top: 1px solid var(--clean-accent);
+    background-color: var(--clean-bg);
+    text-align: right;
+}
+
+.form-actions .btn {
+    min-width: 120px;
+}
+/* Modal footer stays visible even when body scrolls */
+.modal-actions, .form-actions {
+  flex-shrink: 0;
+  padding: 16px 25px;
+  border-top: 1px solid var(--clean-accent);
+  background-color: var(--clean-card-bg);
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+.modal-body-scrollable {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.phases-table-wrapper {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+}

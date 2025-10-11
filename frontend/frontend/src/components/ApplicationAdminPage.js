@@ -1,0 +1,124 @@
+import React, { useState, useEffect } from "react";
+import TimesheetForm from "./TimesheetForm";
+import axios from "axios";
+import "./application.css"; // The new CSS file
+
+const API_URL = "http://127.0.0.1:8000/api";
+
+export default function ApplicationAdminPage() {
+    const [showForm, setShowForm] = useState(false);
+    const [timesheets, setTimesheets] = useState([]);
+    const [mappings, setMappings] = useState({}); // key = foremanId
+    const [loadingMappings, setLoadingMappings] = useState({});
+    const [error, setError] = useState("");
+
+    const fetchTimesheets = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/timesheets/`);
+            setTimesheets(res.data);
+        } catch (err) {
+            setError("Could not fetch timesheets");
+        }
+    };
+
+    const fetchMapping = async (foremanId) => {
+        if (!foremanId || mappings[foremanId] || loadingMappings[foremanId]) return;
+
+        try {
+            setLoadingMappings(prev => ({ ...prev, [foremanId]: true }));
+            const res = await axios.get(`${API_URL}/crew-mapping/by-foreman/${foremanId}`);
+            setMappings(prev => ({ ...prev, [foremanId]: res.data }));
+        } catch (err) {
+            console.error(`Error fetching mapping for foreman ID ${foremanId}:`, err.response ? err.response.data : err.message);
+        } finally {
+            setLoadingMappings(prev => ({ ...prev, [foremanId]: false }));
+        }
+    };
+
+    // --- Logout Functionality ---
+    const handleLogout = () => {
+        // Replace 'authToken' with the key you use to store the user's token
+        localStorage.removeItem('authToken');
+        
+        // Reload the page to redirect to the login screen or home page
+        window.location.reload();
+    };
+
+    useEffect(() => {
+        fetchTimesheets();
+    }, []);
+
+    return (
+        <div className="admin-page-container">
+            {/* Header */}
+            <header className="admin-header">
+                <h1>Admin Dashboard</h1>
+                <div className="header-buttons">
+                    {/* --- Updated Logout Button --- */}
+                    <button
+                        className="btn btn-secondary"
+                        onClick={handleLogout}>
+                        Logout
+                    </button>
+                    <button
+                        onClick={() => setShowForm(true)}
+                        className="btn btn-primary">
+                        + Create Timesheet
+                    </button>
+                </div>
+            </header>
+
+            {/* Timesheet Form Modal */}
+            {showForm && <TimesheetForm onClose={() => { setShowForm(false); fetchTimesheets(); }} />}
+
+            {error && <p className="error-message">{error}</p>}
+
+            {/* Timesheet Cards */}
+            <section className="timesheet-grid">
+                {timesheets.length ? (
+                    timesheets.map(ts => {
+                        const mapping = mappings[ts.foreman_id];
+                        return (
+                            <article
+                                key={ts.id}
+                                className="timesheet-card"
+                                aria-label={`Timesheet: ${ts.timesheet_name}`}
+                            >
+                                <div className="card-header">
+                                    <h2>{ts.timesheet_name}</h2>
+                                    <time dateTime={ts.date}>
+                                        {new Date(ts.date).toLocaleDateString()}
+                                    </time>
+                                </div>
+                                <div className="card-details">
+                                    <p>
+                                        <strong>Foreman:</strong>{" "}
+                                        <span
+                                            className="foreman-link"
+                                            onClick={() => fetchMapping(ts.foreman_id)}
+                                        >
+                                            {ts.foreman_name}
+                                        </span>
+                                    </p>
+                                    {loadingMappings[ts.foreman_id] && <p>Loading crew details...</p>}
+                                    {mapping && (
+                                        <div className="crew-details-box">
+                                            <p><strong>Employees:</strong> {mapping.employees?.map(e => `${e.first_name} ${e.last_name}`).join(", ") || "N/A"}</p>
+                                            <p><strong>Equipment:</strong> {mapping.equipment?.map(eq => eq.name).join(", ") || "N/A"}</p>
+                                            <p><strong>Materials:</strong> {mapping.materials?.map(mat => mat.name).join(", ") || "N/A"}</p>
+                                            <p><strong>Vendors:</strong> {mapping.vendors?.map(ven => ven.name).join(", ") || "N/A"}</p>
+                                        </div>
+                                    )}
+                                    <p><strong>Job Code:</strong> {ts.data?.job?.job_code || "N/A"}</p>
+                                    <p><strong>Phases:</strong> {ts.data?.job?.phase_codes?.join(", ") || "N/A"}</p>
+                                </div>
+                            </article>
+                        );
+                    })
+                ) : (
+                    <p className="empty-message">No timesheets available.</p>
+                )}
+            </section>
+        </div>
+    );
+}

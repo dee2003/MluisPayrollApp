@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Identity, ForeignKey, Boolean, Date
+from sqlalchemy import Column, Integer, String, Identity, ForeignKey, Boolean, Date,DateTime, func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from .database import Base
@@ -15,7 +15,7 @@ class User(Base):
     last_name = Column(String, nullable=False)
     password = Column(String, nullable=False)
     role = Column(String, nullable=False)
-
+    tickets = relationship("Ticket", back_populates="owner")
     # ✅ Cascade delete: delete all timesheets & crew mappings when user is deleted
     timesheets = relationship(
         "Timesheet",
@@ -30,6 +30,18 @@ class User(Base):
         passive_deletes=True
     )
 
+class Ticket(Base):
+    """SQLAlchemy model for the Ticket table."""
+    __tablename__ = "tickets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    extracted_text = Column(String, index=True, nullable=False)
+    # This line is the crucial addition
+    image_path = Column(String, nullable=True)  # Path to the saved image file
+    owner_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=func.now())
+
+    owner = relationship("User", back_populates="tickets")
 
 class Employee(Base):
     __tablename__ = "employees"

@@ -5,13 +5,28 @@ from typing import List
 from . import models, schemas, database, crud
 from .crud import create_crud_router
 from .routers.timesheet import router as timesheet_router
-
+import logging
+import sys
 # Create all database tables if they don't exist
 models.Base.metadata.create_all(bind=database.engine)
 
 
 app = FastAPI()
+logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
+# 2. Get the Uvicorn access logger
+access_logger = logging.getLogger("uvicorn.access")
+
+# 3. Clear any existing handlers that might be broken or redirecting output.
+access_logger.handlers.clear()
+
+# 4. Add a new StreamHandler to ensure logs go to the console (stdout/stderr).
+access_uvicorn_handler = logging.StreamHandler()
+access_logger.addHandler(access_uvicorn_handler)
+
+# 5. Set propagation to False to prevent duplicate logging if the root logger is also configured.
+access_logger.propagate = False
+access_logger.setLevel(logging.INFO)
 
 # --- Middleware ---
 app.add_middleware(
@@ -196,7 +211,11 @@ for item in crud_models:
     prefix, tags = f"/api/{model.__tablename__}", [model.__tablename__.capitalize()]
     router = create_crud_router(model=model, create_schema=create_schema, response_schema=response_schema, prefix=prefix, tags=tags)
     app.include_router(router)
+
     
+from .ocr import ocr_main
+app.include_router(ocr_main.router)
+   
 app.include_router(job_phase_router)
 app.include_router(crew_mapping_router)
 app.include_router(timesheet_router)

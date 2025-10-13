@@ -16,16 +16,28 @@ const ForemanDashboard = ({ navigation }: { navigation: DashboardNavigationProp 
       <View style={styles.header}>
         <Text style={styles.welcomeText}>Welcome, {user?.username}!</Text>
         <TouchableOpacity onPress={logout}>
-            <Text style={styles.logoutText}>Logout</Text>
+          <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
+
       <View style={styles.content}>
-        <TouchableOpacity 
+        {/* Existing button */}
+        <TouchableOpacity
+  style={[styles.button, { backgroundColor: '#28a745', marginTop: 20 }]}
+  onPress={() => navigation.navigate('ScanTicket')}
+>
+  <Text style={styles.buttonText}>Scan Ticket</Text>
+</TouchableOpacity>
+
+
+        <TouchableOpacity
           style={styles.button}
           onPress={() => navigation.navigate('TimesheetList')}
         >
           <Text style={styles.buttonText}>View My Timesheets</Text>
         </TouchableOpacity>
+
+        
       </View>
     </SafeAreaView>
   );

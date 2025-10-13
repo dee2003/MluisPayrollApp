@@ -8,12 +8,16 @@ import LoginScreen from '../screens/LoginScreen';
 import ForemanDashboard from '../screens/foreman/ForemanDashboard';
 import TimesheetListScreen from '../screens/foreman/TimesheetListScreen';
 import TimesheetEditScreen from '../screens/foreman/TimesheetEditScreen';
+import ScanTicket from '../screens/foreman/ScanTicket';
+
 
 // --- Updated Param List ---
 export type ForemanStackParamList = {
   ForemanDashboard: undefined;
   TimesheetList: undefined;
   TimesheetEdit: { timesheetId: number };
+  Timesheet: undefined;
+  ScanTicket: undefined; 
 };
 
 export type RootStackParamList = {
@@ -41,6 +45,13 @@ const ForemanNavigator = () => (
             component={TimesheetEditScreen} 
             options={{ title: 'Enter Hours' }}
         />
+        
+        <ForemanStack.Screen
+  name="ScanTicket"
+  component={ScanTicket}
+  options={{ title: 'Scan Ticket' }}
+/>
+
     </ForemanStack.Navigator>
 );
 

@@ -4,6 +4,7 @@ export interface User {
   id: number;
   username: string;
   role: 'foreman' | 'supervisor' | 'project_engineer' | 'admin';
+  token: string;
 }
 
 export interface EmployeeWorkLog {

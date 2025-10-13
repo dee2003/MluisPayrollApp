@@ -36,8 +36,10 @@ class Employee(Base):
 
     id = Column(String, primary_key=True, index=True)
     first_name = Column(String)
+    middle_name = Column(String, nullable=True)
     last_name = Column(String)
-    employee_class = Column("class", String)
+    class_1 = Column(String)   # Class code field 1
+    class_2 = Column(String)   # Class code field 2
     status = Column(String, default="Active")
 
 
@@ -105,5 +107,6 @@ class Timesheet(Base):
     date = Column(Date, default=date.today)
     data = Column(JSON, nullable=True)
     sent = Column(Boolean, default=False)
+    status = Column(String, default="pending")  # <-- add this
 
     foreman = relationship("User", back_populates="timesheets")

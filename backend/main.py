@@ -5,6 +5,7 @@ from typing import List
 from . import models, schemas, database, crud
 from .crud import create_crud_router
 from .routers.timesheet import router as timesheet_router
+from .routers.equipment import router as equipment_router
 
 # Create all database tables if they don't exist
 models.Base.metadata.create_all(bind=database.engine)
@@ -200,6 +201,8 @@ for item in crud_models:
 app.include_router(job_phase_router)
 app.include_router(crew_mapping_router)
 app.include_router(timesheet_router)
+# main.py
+app.include_router(equipment_router)
 
 
 # --- Main Data Endpoint ---

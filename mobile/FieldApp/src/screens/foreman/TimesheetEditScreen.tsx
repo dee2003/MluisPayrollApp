@@ -1,187 +1,402 @@
-// /src/screens/foreman/TimesheetEditScreen.tsx
-
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, Button, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  SafeAreaView,
+  Alert,
+} from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import apiClient from '../../api/apiClient';
 import { Timesheet } from '../../types';
 import { ForemanStackParamList } from '../../navigation/AppNavigator';
+import { Dropdown } from 'react-native-element-dropdown';
 
-// Helper component for displaying details neatly
-const DetailRow = ({ label, value }: { label: string; value?: string | string[] }) => {
-  if (value === undefined || value === null || value.length === 0) return null;
-  const displayValue = Array.isArray(value) ? value.join(', ') : value;
-  return (
-    <View style={styles.detailRow}>
-      <Text style={styles.label}>{label}</Text>
-      <Text style={styles.value}>{displayValue}</Text>
-    </View>
-  );
-};
-
+type HourState = Record<string, Record<string, string>>;
 type EditScreenRouteProp = RouteProp<ForemanStackParamList, 'TimesheetEdit'>;
 type EditScreenNavigationProp = StackNavigationProp<ForemanStackParamList, 'TimesheetEdit'>;
-type Props = { route: EditScreenRouteProp; navigation: EditScreenNavigationProp; };
+
+type Props = {
+  route: EditScreenRouteProp;
+  navigation: EditScreenNavigationProp;
+};
+
+const COLORS = {
+  primary: '#007AFF',
+  success: '#34C759',
+  background: '#F2F2F7',
+  card: '#FFFFFF',
+  text: '#1C1C1E',
+  textSecondary: '#636366',
+  border: '#D1D1D6',
+};
 
 const TimesheetEditScreen = ({ route, navigation }: Props) => {
   const { timesheetId } = route.params;
+
   const [timesheet, setTimesheet] = useState<Timesheet | null>(null);
-  const [employeeHours, setEmployeeHours] = useState<Record<string, string>>({});
-  const [equipmentHours, setEquipmentHours] = useState<Record<string, string>>({});
+  const [foremanName, setForemanName] = useState<string>('');
+  const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
+
+  const [employeeHours, setEmployeeHours] = useState<HourState>({});
+  const [equipmentHours, setEquipmentHours] = useState<HourState>({});
+  const [materialHours, setMaterialHours] = useState<HourState>({});
+  const [vendorHours, setVendorHours] = useState<HourState>({});
+
+  const [availableEquipment, setAvailableEquipment] = useState<any[]>([]);
+  const [selectedEquipToAdd, setSelectedEquipToAdd] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const isEditable = timesheet?.status === 'Pending';
-
+  // Fetch timesheet and equipment list
   useEffect(() => {
-    const fetchTimesheet = async () => {
+    const fetchData = async () => {
       try {
         const response = await apiClient.get<Timesheet>(`/api/timesheets/${timesheetId}`);
         const tsData = response.data;
         setTimesheet(tsData);
-        navigation.setOptions({ title: tsData.data.job_name });
+        navigation.setOptions({ title: `${tsData.data.job_name} - Edit` });
+        if (tsData.data.job.phase_codes?.length > 0)
+          setSelectedPhase(tsData.data.job.phase_codes[0]);
 
-        // --- FIX: Pre-populate the hour fields ---
-        const initialEmpHours: Record<string, string> = {};
-        tsData.data.employees.forEach(emp => {
-          const key = `${emp.first_name} ${emp.last_name}`;
-          initialEmpHours[key] = emp.hours?.toString() || '';
-        });
-        setEmployeeHours(initialEmpHours);
+        const populateHours = (entities: any[] = []) => {
+          const state: HourState = {};
+          entities.forEach((entity) => {
+            state[entity.id] = {};
+            if (entity.hours_per_phase) {
+              for (const phase in entity.hours_per_phase) {
+                state[entity.id][phase] = entity.hours_per_phase[phase].toString();
+              }
+            }
+          });
+          return state;
+        };
 
-        const initialEquipHours: Record<string, string> = {};
-        tsData.data.equipment.forEach(eq => {
-          initialEquipHours[eq.name] = eq.hours?.toString() || '';
-        });
-        setEquipmentHours(initialEquipHours);
+        setEmployeeHours(populateHours(tsData.data.employees));
+        setEquipmentHours(populateHours(tsData.data.equipment));
+        setMaterialHours(populateHours(tsData.data.materials));
+        setVendorHours(populateHours(tsData.data.vendors));
 
-      } catch (error) { Alert.alert("Error", "Could not load timesheet details."); } 
-      finally { setLoading(false); }
+        // Fetch full equipment list
+        const eqRes = await apiClient.get('/api/equipment');
+        setAvailableEquipment(eqRes.data);
+
+        // Fetch foreman name
+        const res = await apiClient.get(`/api/users/${tsData.foreman_id}`);
+        setForemanName(`${res.data.first_name} ${res.data.middle_name || ''} ${res.data.last_name}`.trim());
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchTimesheet();
+    fetchData();
   }, [timesheetId, navigation]);
-  
-  // This function now correctly updates the state, allowing the input to be edited
-  const handleHourChange = (type: 'employee' | 'equipment', key: string, value: string) => {
-    const setter = type === 'employee' ? setEmployeeHours : setEquipmentHours;
-    setter(prev => ({ ...prev, [key]: value.replace(/[^0-9.]/g, '') }));
+
+  const handleHourChange = (type: 'employee' | 'equipment' | 'material' | 'vendor', entityId: string, phaseCode: string, value: string) => {
+    const setters = { employee: setEmployeeHours, equipment: setEquipmentHours, material: setMaterialHours, vendor: setVendorHours };
+    const sanitizedValue = value.replace(/[^0-9.]/g, '');
+    setters[type]((prev) => ({ ...prev, [entityId]: { ...prev[entityId], [phaseCode]: sanitizedValue } }));
   };
 
-  const handleSubmit = async () => {
+  // Remove equipment
+  const handleRemoveEquipment = (id: string) => {
+    setTimesheet((ts) => {
+      if (!ts) return ts;
+      const newEq = ts.data.equipment.filter((eq) => eq.id !== id);
+      return { ...ts, data: { ...ts.data, equipment: newEq } };
+    });
+    setEquipmentHours((prev) => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
+  };
+
+  // Add equipment
+  const handleAddEquipment = () => {
+    if (!selectedEquipToAdd || !timesheet) return;
+    const eq = availableEquipment.find((e) => e.id === selectedEquipToAdd);
+    if (!eq) return;
+
+    // check if already added
+    if (timesheet.data.equipment.some(e => e.id === eq.id)) return;
+
+    setTimesheet((ts) => {
+      if (!ts) return ts;
+      return {
+        ...ts,
+        data: {
+          ...ts.data,
+          equipment: [...ts.data.equipment, eq],
+        },
+      };
+    });
+    setEquipmentHours((prev) => ({ ...prev, [eq.id]: {} }));
+    setSelectedEquipToAdd(null);
+  };
+
+  const handleSave = async () => {
     if (!timesheet) return;
     setIsSubmitting(true);
-    
-    const updatedData = { ...timesheet.data };
-    updatedData.employees = timesheet.data.employees.map(emp => ({ ...emp, hours: parseFloat(employeeHours[`${emp.first_name} ${emp.last_name}`] || '0') }));
-    updatedData.equipment = timesheet.data.equipment.map(eq => ({ ...eq, hours: parseFloat(equipmentHours[eq.name] || '0') }));
-
-    const payload = { data: updatedData, status: 'Submitted' as const };
-
     try {
-      await apiClient.put(`/api/timesheets/${timesheet.id}`, payload);
-      Alert.alert("Success", "Timesheet has been submitted.");
-      navigation.goBack();
+      const updatedEmployees = timesheet.data.employees.map((emp) => ({
+        ...emp,
+        selected_class: emp.selected_class || '',
+        hours_per_phase: employeeHours[emp.id] || {},
+      }));
+      const updatedEquipment = timesheet.data.equipment.map((eq) => ({
+        ...eq,
+        hours_per_phase: equipmentHours[eq.id] || {},
+      }));
+      const updatedData = {
+        ...timesheet.data,
+        employees: updatedEmployees,
+        equipment: updatedEquipment,
+        materials: timesheet.data.materials,
+        vendors: timesheet.data.vendors,
+      };
+      await apiClient.put(`/api/timesheets/${timesheet.id}`, { data: updatedData });
+      Alert.alert('Success', 'Timesheet saved successfully!');
     } catch (error) {
-      console.error(error);
-      Alert.alert("Error", "Failed to submit timesheet.");
+      console.error('Save failed:', error);
+      Alert.alert('Error', 'Failed to save timesheet. Please try again.');
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
-  if (loading) return <ActivityIndicator size="large" style={{ flex: 1 }} />;
-  if (!timesheet) return <View><Text>Timesheet not found.</Text></View>;
-
-  const { data, date, foreman_name } = timesheet;
-
-  return (
-    <ScrollView style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.headerTitle}>{data.job_name}</Text>
-        <DetailRow label="Date" value={new Date(date).toLocaleDateString()} />
-        <DetailRow label="Project Engineer" value={data.project_engineer} />
-        <DetailRow label="Phase Codes" value={data.job.phase_codes} />
-        <DetailRow label="Foreman" value={foreman_name} />
-      </View>
-      
-      <View style={styles.card}>
-        <DetailRow label="Weather" value={data.weather} />
-        <DetailRow label="Temperature" value={data.temperature} />
-        <DetailRow label="Time of Day" value={data.time_of_day} />
-        <DetailRow label="Shift" value={data.shift} /> 
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.headerTitle}>{isEditable ? 'Enter Daily Hours' : 'Recorded Hours'}</Text>
-        
-        <Text style={styles.sectionTitle}>Employees</Text>
-        {data.employees.map((emp, index) => {
-          const key = `${emp.first_name} ${emp.last_name}`;
-          return (
-            <View key={`emp-${index}`} style={styles.inputRow}>
-              <Text style={styles.inputLabel}>{key}</Text>
-              <TextInput
-                style={[styles.input, !isEditable && styles.readOnlyInput]}
-                placeholder="0"
-                keyboardType="numeric"
-                value={employeeHours[key]} // FIX: Directly use the state value
-                onChangeText={text => handleHourChange('employee', key, text)}
-                editable={isEditable}
-              />
-            </View>
-          );
-        })}
-
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>Equipment</Text>
-        {data.equipment.map((eq, index) => {
-          return (
-            <View key={`eq-${index}`} style={styles.inputRow}>
-              <Text style={styles.inputLabel}>{eq.name}</Text>
-              <TextInput
-                style={[styles.input, !isEditable && styles.readOnlyInput]}
-                placeholder="0"
-                keyboardType="numeric"
-                value={equipmentHours[eq.name]} // FIX: Directly use the state value
-                onChangeText={text => handleHourChange('equipment', eq.name, text)}
-                editable={isEditable}
-              />
-            </View>
-          );
-        })}
-      </View>
-
-      {/* --- NEW: Materials and Vendors Section --- */}
-      <View style={styles.card}>
-        <Text style={styles.headerTitle}>Resources</Text>
-        <DetailRow label="Materials" value={data.materials?.map(m => m.name)} />
-        <DetailRow label="Vendors" value={data.vendors?.map(v => v.name)} />
-      </View>
-      
-      {isEditable && (
-        <View style={styles.buttonContainer}>
-          <Button title={isSubmitting ? "Submitting..." : "Send to Supervisor"} onPress={handleSubmit} disabled={isSubmitting} />
+  const renderEntityInputs = (
+    title: string,
+    entities: any[],
+    hoursState: HourState,
+    type: 'employee' | 'equipment' | 'material' | 'vendor'
+  ) => (
+    <View style={styles.card}>
+      <Text style={styles.cardTitle}>{title}</Text>
+      {entities.map((entity) => (
+        <View key={entity.id} style={styles.inputRow}>
+          <Text style={styles.inputLabel}>
+            {entity.first_name
+              ? `${entity.first_name} ${entity.middle_name || ''} ${entity.last_name}`
+              : entity.name}
+          </Text>
+          {type === 'employee' && (
+            <Dropdown
+              style={styles.dropdown}
+              containerStyle={{ flex: 1 }}
+              data={[
+                ...(entity.class_1 ? [{ label: entity.class_1, value: entity.class_1 }] : []),
+                ...(entity.class_2 ? [{ label: entity.class_2, value: entity.class_2 }] : []),
+              ]}
+              labelField="label"
+              valueField="value"
+              placeholder="Select Class"
+              value={entity.selected_class || undefined}
+              selectedTextStyle={{ fontSize: 16 }}
+              placeholderStyle={{ fontSize: 16, color: COLORS.textSecondary }}
+              maxHeight={100}
+              renderItem={(item) => (
+                <View style={{ padding: 12 }}>
+                  <Text style={{ fontSize: 16 }}>{item.label}</Text>
+                </View>
+              )}
+              onChange={(item) => {
+                setTimesheet((ts) => {
+                  if (!ts) return ts;
+                  const updatedEmployees = ts.data.employees.map((emp) => {
+                    if (emp.id === entity.id) return { ...emp, selected_class: item.value };
+                    return emp;
+                  });
+                  return { ...ts, data: { ...ts.data, employees: updatedEmployees } };
+                });
+              }}
+            />
+          )}
+          <TextInput
+            style={styles.input}
+            keyboardType="numeric"
+            placeholder="0"
+            value={hoursState[entity.id]?.[selectedPhase!] || ''}
+            onChangeText={(text) => handleHourChange(type, entity.id, selectedPhase!, text)}
+          />
+          {type === 'equipment' && (
+            <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveEquipment(entity.id)}>
+              <Text style={styles.removeButtonText}>Remove</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      ))}
+      {type === 'equipment' && (
+        <View style={styles.addEquipmentRow}>
+          <Dropdown
+            style={[styles.dropdown, { flex: 1 }]}
+            data={availableEquipment.filter(eq => !timesheet?.data.equipment.some(e => e.id === eq.id))}
+            labelField="name"
+            valueField="id"
+            placeholder="Select equipment to add"
+            value={selectedEquipToAdd}
+            onChange={(item) => setSelectedEquipToAdd(item.value)}
+            maxHeight={150}
+  search={true}               // <-- Correct prop for enabling search
+            searchPlaceholder="Search equipment"
+          />
+          <TouchableOpacity style={styles.addButton} onPress={handleAddEquipment}>
+            <Text style={styles.addButtonText}>Add</Text>
+          </TouchableOpacity>
         </View>
       )}
-    </ScrollView>
+    </View>
+  );
+
+  if (loading) return <ActivityIndicator size="large" style={styles.centered} />;
+  if (!timesheet)
+    return (
+      <View style={styles.centered}>
+        <Text>Timesheet not found</Text>
+      </View>
+    );
+
+  const { data, date } = timesheet;
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+        {/* Timesheet info details */}
+        <View style={styles.infoCard}>
+          <Text style={styles.jobTitle}>{data.job_name}</Text>
+          <Text style={styles.jobCode}>Job Code: {data.job.job_code}</Text>
+          <Text style={styles.infoText}>Date: {new Date(date).toLocaleDateString()}</Text>
+          <Text style={styles.infoText}>Foreman: {foremanName}</Text>
+          <Text style={styles.infoText}>Project Engineer: {data.project_engineer || 'N/A'}</Text>
+          <Text style={styles.infoText}>Location: {data.location || 'N/A'}</Text>
+          <Text style={styles.infoText}>Weather: {data.weather || 'N/A'}</Text>
+          <Text style={styles.infoText}>Temp: {data.temperature || 'N/A'}</Text>
+          <Text style={styles.infoText}>Day: {data.time_of_day || 'N/A'}</Text>
+        </View>
+        {/* Phase selection */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
+          {data.job.phase_codes.map((phase) => (
+            <TouchableOpacity
+              key={phase}
+              style={[styles.phaseButton, selectedPhase === phase && styles.selectedPhaseButton]}
+              onPress={() => setSelectedPhase(phase)}
+            >
+              <Text
+                style={[
+                  styles.phaseButtonText,
+                  selectedPhase === phase && styles.selectedPhaseButtonText,
+                ]}
+              >
+                {phase}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        {/* Entity Inputs */}
+        {selectedPhase && (
+          <View style={styles.contentArea}>
+            {renderEntityInputs('Employees', data.employees, employeeHours, 'employee')}
+            {renderEntityInputs('Equipment', data.equipment, equipmentHours, 'equipment')}
+            {renderEntityInputs('Materials', data.materials, materialHours, 'material')}
+            {renderEntityInputs('Vendors', data.vendors, vendorHours, 'vendor')}
+          </View>
+        )}
+      </ScrollView>
+      {/* Save button */}
+      <View style={{ padding: 16 }}>
+        <TouchableOpacity
+          style={styles.submitButton}
+          onPress={handleSave}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator color={COLORS.card} />
+          ) : (
+            <Text style={styles.submitButtonText}>Save Timesheet</Text>
+          )}
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
   );
 };
 
-// ... (Styles remain the same)
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f0f2f5' },
-    card: { backgroundColor: '#fff', borderRadius: 8, padding: 15, marginHorizontal: 10, marginVertical: 8, elevation: 2 },
-    headerTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 15, borderBottomWidth: 1, borderBottomColor: '#eee', paddingBottom: 10 },
-    sectionTitle: { fontSize: 16, fontWeight: 'bold', color: '#333', marginBottom: 10 },
-    detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 5 },
-    label: { fontSize: 15, color: '#555', fontWeight: '600' },
-    value: { fontSize: 15, color: '#333', flex: 1, textAlign: 'right' },
-    inputRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 8 },
-    inputLabel: { fontSize: 16, flex: 1 },
-    input: { borderWidth: 1, borderColor: '#ccc', borderRadius: 5, paddingVertical: 8, paddingHorizontal: 12, width: 80, textAlign: 'center' },
-    readOnlyInput: { backgroundColor: '#f0f0f0', color: '#555' },
-    buttonContainer: { margin: 20, marginBottom: 40 }
-});
+  safeArea: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1, padding: 10 },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
+  infoCard: { padding: 16, backgroundColor: COLORS.card, borderRadius: 12, marginBottom: 12 },
+  jobTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 4, color: COLORS.text },
+  jobCode: { fontSize: 16, color: COLORS.textSecondary },
+  infoText: { fontSize: 16, color: COLORS.textSecondary, marginTop: 4 },
+
+  contentArea: { paddingBottom: 20 },
+
+  card: { backgroundColor: COLORS.card, borderRadius: 12, padding: 16, marginBottom: 12 },
+  cardTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: COLORS.text },
+  inputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  inputLabel: { flex: 1, fontSize: 16, color: COLORS.text },
+  input: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 8,
+    padding: 8,
+    width: 80,
+    textAlign: 'center',
+    marginLeft: 8,
+  },
+
+  dropdown: {
+    height: 30,
+    borderColor: COLORS.border,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+  },
+
+  removeButton: {
+    marginLeft: 8,
+    backgroundColor: '#ff4d4d',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  removeButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+  },
+
+  addEquipmentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  addButton: {
+    marginLeft: 8,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  addButtonText: {
+    color: COLORS.card,
+    fontWeight: 'bold',
+  },
+
+  phaseButton: { paddingHorizontal: 12, paddingVertical: 6, marginRight: 8, borderRadius: 8, backgroundColor: '#ddd' },
+  selectedPhaseButton: { backgroundColor: COLORS.primary },
+  phaseButtonText: { color: COLORS.text },
+  selectedPhaseButtonText: { color: '#fff', fontWeight: 'bold' },
+
+  submitButton: { backgroundColor: COLORS.success, padding: 16, borderRadius: 12, alignItems: 'center' },
+  submitButtonText: { color: COLORS.card, fontWeight: 'bold', fontSize: 16 },
+});
 
 export default TimesheetEditScreen;

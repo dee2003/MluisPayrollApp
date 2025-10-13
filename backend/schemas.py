@@ -35,9 +35,12 @@ class User(UserBase):
 class EmployeeBase(BaseModel):
     id: str
     first_name: str
+    middle_name: Optional[str] = None
     last_name: str
-    employee_class: str
+    class_1: Optional[str] = None   # Must match ORM and API
+    class_2: Optional[str] = None
     status: str
+
 
 class EmployeeCreate(EmployeeBase): 
     pass
@@ -194,7 +197,9 @@ class TimesheetUpdate(BaseModel):
 
 class Timesheet(TimesheetBase):
     id: int
-    status: Optional[str] = None   # add if your schema expects 'status'
+    status: Optional[str] = None 
+    foreman_name: Optional[str] = None  # optional, fill via join
+  # add if your schema expects 'status'
     model_config = model_config
 
 class TimesheetResponse(BaseModel):

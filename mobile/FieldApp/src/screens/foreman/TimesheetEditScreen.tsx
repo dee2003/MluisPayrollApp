@@ -17,14 +17,17 @@ import { Timesheet } from '../../types';
 import { ForemanStackParamList } from '../../navigation/AppNavigator';
 import { Dropdown } from 'react-native-element-dropdown';
 
+
 type HourState = Record<string, Record<string, string>>;
 type EditScreenRouteProp = RouteProp<ForemanStackParamList, 'TimesheetEdit'>;
 type EditScreenNavigationProp = StackNavigationProp<ForemanStackParamList, 'TimesheetEdit'>;
+
 
 type Props = {
   route: EditScreenRouteProp;
   navigation: EditScreenNavigationProp;
 };
+
 
 const COLORS = {
   primary: '#007AFF',
@@ -36,25 +39,28 @@ const COLORS = {
   border: '#D1D1D6',
 };
 
+
 const TimesheetEditScreen = ({ route, navigation }: Props) => {
   const { timesheetId } = route.params;
+
 
   const [timesheet, setTimesheet] = useState<Timesheet | null>(null);
   const [foremanName, setForemanName] = useState<string>('');
   const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
+
 
   const [employeeHours, setEmployeeHours] = useState<HourState>({});
   const [equipmentHours, setEquipmentHours] = useState<HourState>({});
   const [materialHours, setMaterialHours] = useState<HourState>({});
   const [vendorHours, setVendorHours] = useState<HourState>({});
 
-  const [availableEquipment, setAvailableEquipment] = useState<any[]>([]);
-  const [selectedEquipToAdd, setSelectedEquipToAdd] = useState<string | null>(null);
 
+  const [availableEquipment, setAvailableEquipment] = useState<any[]>([]);
+  
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch timesheet and equipment list
+
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -64,6 +70,7 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
         navigation.setOptions({ title: `${tsData.data.job_name} - Edit` });
         if (tsData.data.job.phase_codes?.length > 0)
           setSelectedPhase(tsData.data.job.phase_codes[0]);
+
 
         const populateHours = (entities: any[] = []) => {
           const state: HourState = {};
@@ -78,20 +85,22 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
           return state;
         };
 
+
         setEmployeeHours(populateHours(tsData.data.employees));
         setEquipmentHours(populateHours(tsData.data.equipment));
         setMaterialHours(populateHours(tsData.data.materials));
         setVendorHours(populateHours(tsData.data.vendors));
 
-        // Fetch full equipment list
+
         const eqRes = await apiClient.get('/api/equipment');
         setAvailableEquipment(eqRes.data);
 
-        // Fetch foreman name
+
         const res = await apiClient.get(`/api/users/${tsData.foreman_id}`);
         setForemanName(`${res.data.first_name} ${res.data.middle_name || ''} ${res.data.last_name}`.trim());
       } catch (error) {
         console.error(error);
+        Alert.alert('Error', 'Failed to load timesheet data.');
       } finally {
         setLoading(false);
       }
@@ -99,13 +108,14 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
     fetchData();
   }, [timesheetId, navigation]);
 
+
   const handleHourChange = (type: 'employee' | 'equipment' | 'material' | 'vendor', entityId: string, phaseCode: string, value: string) => {
     const setters = { employee: setEmployeeHours, equipment: setEquipmentHours, material: setMaterialHours, vendor: setVendorHours };
     const sanitizedValue = value.replace(/[^0-9.]/g, '');
     setters[type]((prev) => ({ ...prev, [entityId]: { ...prev[entityId], [phaseCode]: sanitizedValue } }));
   };
 
-  // Remove equipment
+
   const handleRemoveEquipment = (id: string) => {
     setTimesheet((ts) => {
       if (!ts) return ts;
@@ -119,28 +129,36 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
     });
   };
 
-  // Add equipment
-  const handleAddEquipment = () => {
-    if (!selectedEquipToAdd || !timesheet) return;
-    const eq = availableEquipment.find((e) => e.id === selectedEquipToAdd);
-    if (!eq) return;
 
-    // check if already added
-    if (timesheet.data.equipment.some(e => e.id === eq.id)) return;
+  // MODIFIED: Combines selection and adding into one step
+  const handleAddEquipment = (item: any) => {
+    if (!item || !item.id || !timesheet) return;
+
+
+    const equipmentToAdd = item;
+
+
+    if (timesheet.data.equipment.some(e => e.id === equipmentToAdd.id)) {
+        Alert.alert("Duplicate", "This equipment has already been added.");
+        return;
+    }
+
 
     setTimesheet((ts) => {
-      if (!ts) return ts;
-      return {
-        ...ts,
-        data: {
-          ...ts.data,
-          equipment: [...ts.data.equipment, eq],
-        },
-      };
+        if (!ts) return ts;
+        return {
+            ...ts,
+            data: {
+                ...ts.data,
+                equipment: [...ts.data.equipment, equipmentToAdd],
+            },
+        };
     });
-    setEquipmentHours((prev) => ({ ...prev, [eq.id]: {} }));
-    setSelectedEquipToAdd(null);
+
+
+    setEquipmentHours((prev) => ({ ...prev, [equipmentToAdd.id]: {} }));
   };
+
 
   const handleSave = async () => {
     if (!timesheet) return;
@@ -159,7 +177,7 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
         ...timesheet.data,
         employees: updatedEmployees,
         equipment: updatedEquipment,
-        materials: timesheet.data.materials,
+        materials: timesheet.data.materials, // Assuming materials/vendors don't have hours edited this way
         vendors: timesheet.data.vendors,
       };
       await apiClient.put(`/api/timesheets/${timesheet.id}`, { data: updatedData });
@@ -171,6 +189,7 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
       setIsSubmitting(false);
     }
   };
+
 
   const renderEntityInputs = (
     title: string,
@@ -241,19 +260,17 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
             labelField="name"
             valueField="id"
             placeholder="Select equipment to add"
-            value={selectedEquipToAdd}
-            onChange={(item) => setSelectedEquipToAdd(item.value)}
+            value={null} // Keep as null to act as a button
+            onChange={handleAddEquipment} // MODIFIED: Directly calls the add handler
             maxHeight={150}
-  search={true}               // <-- Correct prop for enabling search
-            searchPlaceholder="Search equipment"
+            search={true}
+            searchPlaceholder="Search equipment..."
           />
-          <TouchableOpacity style={styles.addButton} onPress={handleAddEquipment}>
-            <Text style={styles.addButtonText}>Add</Text>
-          </TouchableOpacity>
         </View>
       )}
     </View>
   );
+
 
   if (loading) return <ActivityIndicator size="large" style={styles.centered} />;
   if (!timesheet)
@@ -263,12 +280,26 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
       </View>
     );
 
+
   const { data, date } = timesheet;
+const handleSend = async () => {
+  if (!timesheet) return;
+  setIsSubmitting(true);
+  try {
+    await apiClient.post(`/api/timesheets/${timesheet.id}/send`);
+    Alert.alert('Success', 'Timesheet sent to supervisor!');
+  } catch (error) {
+    console.error('Send failed:', error);
+    Alert.alert('Error', 'Failed to send timesheet.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
-        {/* Timesheet info details */}
         <View style={styles.infoCard}>
           <Text style={styles.jobTitle}>{data.job_name}</Text>
           <Text style={styles.jobCode}>Job Code: {data.job.job_code}</Text>
@@ -280,7 +311,8 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
           <Text style={styles.infoText}>Temp: {data.temperature || 'N/A'}</Text>
           <Text style={styles.infoText}>Day: {data.time_of_day || 'N/A'}</Text>
         </View>
-        {/* Phase selection */}
+
+
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 10 }}>
           {data.job.phase_codes.map((phase) => (
             <TouchableOpacity
@@ -299,7 +331,8 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
             </TouchableOpacity>
           ))}
         </ScrollView>
-        {/* Entity Inputs */}
+
+
         {selectedPhase && (
           <View style={styles.contentArea}>
             {renderEntityInputs('Employees', data.employees, employeeHours, 'employee')}
@@ -309,7 +342,8 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
           </View>
         )}
       </ScrollView>
-      {/* Save button */}
+
+
       <View style={{ padding: 16 }}>
         <TouchableOpacity
           style={styles.submitButton}
@@ -322,81 +356,134 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
             <Text style={styles.submitButtonText}>Save Timesheet</Text>
           )}
         </TouchableOpacity>
+        <TouchableOpacity
+  style={[styles.submitButton, { backgroundColor: '#007AFF', marginTop: 10 }]}
+  onPress={handleSend}
+  disabled={isSubmitting}
+>
+  <Text style={styles.submitButtonText}>Send Timesheet</Text>
+</TouchableOpacity>
+
       </View>
     </SafeAreaView>
   );
 };
 
+
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: COLORS.background },
-  container: { flex: 1, padding: 10 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  infoCard: { padding: 16, backgroundColor: COLORS.card, borderRadius: 12, marginBottom: 12 },
-  jobTitle: { fontSize: 20, fontWeight: 'bold', marginBottom: 4, color: COLORS.text },
-  jobCode: { fontSize: 16, color: COLORS.textSecondary },
-  infoText: { fontSize: 16, color: COLORS.textSecondary, marginTop: 4 },
-
-  contentArea: { paddingBottom: 20 },
-
-  card: { backgroundColor: COLORS.card, borderRadius: 12, padding: 16, marginBottom: 12 },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: COLORS.text },
-  inputRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
-  inputLabel: { flex: 1, fontSize: 16, color: COLORS.text },
-  input: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    padding: 8,
-    width: 80,
-    textAlign: 'center',
-    marginLeft: 8,
-  },
-
-  dropdown: {
-    height: 30,
-    borderColor: COLORS.border,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-  },
-
-  removeButton: {
-    marginLeft: 8,
-    backgroundColor: '#ff4d4d',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  removeButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-  },
-
-  addEquipmentRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  addButton: {
-    marginLeft: 8,
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  addButtonText: {
-    color: COLORS.card,
-    fontWeight: 'bold',
-  },
-
-  phaseButton: { paddingHorizontal: 12, paddingVertical: 6, marginRight: 8, borderRadius: 8, backgroundColor: '#ddd' },
-  selectedPhaseButton: { backgroundColor: COLORS.primary },
-  phaseButtonText: { color: COLORS.text },
-  selectedPhaseButtonText: { color: '#fff', fontWeight: 'bold' },
-
-  submitButton: { backgroundColor: COLORS.success, padding: 16, borderRadius: 12, alignItems: 'center' },
-  submitButtonText: { color: COLORS.card, fontWeight: 'bold', fontSize: 16 },
+    safeArea: { flex: 1, backgroundColor: COLORS.background },
+    container: { flex: 1, padding: 10 },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    infoCard: {
+        padding: 16,
+        backgroundColor: COLORS.card,
+        borderRadius: 12,
+        marginBottom: 12,
+    },
+    jobTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text, marginBottom: 4 },
+    jobCode: { fontSize: 16, color: COLORS.textSecondary },
+    infoText: { fontSize: 16, color: COLORS.textSecondary, marginTop: 4 },
+    contentArea: { paddingBottom: 20 },
+    card: {
+        backgroundColor: COLORS.card,
+        borderRadius: 12,
+        padding: 16,
+        marginBottom: 12,
+    },
+    cardTitle: { fontSize: 18, fontWeight: 'bold', color: COLORS.text, marginBottom: 12 },
+    inputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 12,
+        minHeight: 40, // Ensure consistent row height
+    },
+    inputLabel: { flex: 1, fontSize: 16, color: COLORS.text },
+    input: {
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 8,
+        width: 70,
+        textAlign: 'center',
+        fontSize: 16,
+        marginLeft: 8,
+    },
+    dropdown: {
+        height: 40,
+        borderColor: COLORS.border,
+        borderWidth: 1,
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        marginLeft: 8,
+        minWidth: 120, // Give dropdown more space
+    },
+    removeButton: {
+        marginLeft: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        backgroundColor: '#FF3B30',
+        borderRadius: 8,
+    },
+    removeButtonText: {
+        color: 'white',
+        fontWeight: 'bold',
+    },
+    addEquipmentRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginTop: 12,
+        borderTopWidth: 1,
+        borderTopColor: COLORS.border,
+        paddingTop: 12,
+    },
+    addButton: {
+        marginLeft: 8,
+        backgroundColor: COLORS.primary,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 8,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    addButtonText: {
+        color: COLORS.card,
+        fontWeight: 'bold',
+        fontSize: 16,
+    },
+    phaseButton: {
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        marginRight: 8,
+        borderRadius: 20,
+        backgroundColor: COLORS.card,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+    },
+    selectedPhaseButton: {
+        backgroundColor: COLORS.primary,
+        borderColor: COLORS.primary,
+    },
+    phaseButtonText: {
+        color: COLORS.text,
+        fontWeight: '500',
+    },
+    selectedPhaseButtonText: {
+        color: COLORS.card,
+        fontWeight: 'bold',
+    },
+    submitButton: {
+        backgroundColor: COLORS.success,
+        padding: 16,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    submitButtonText: {
+        color: COLORS.card,
+        fontWeight: 'bold',
+        fontSize: 18,
+    },
 });
+
 
 export default TimesheetEditScreen;

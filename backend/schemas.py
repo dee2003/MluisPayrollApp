@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, field_validator, EmailStr
 from typing import Optional, List, Any, Dict
 from datetime import date
+from datetime import date, datetime
 
 # --- Shared Pydantic v2 config ---
 model_config = ConfigDict(from_attributes=True)
@@ -194,13 +195,26 @@ class TimesheetCreate(TimesheetBase):
 class TimesheetUpdate(BaseModel):
     data: Optional[Dict[str, Any]] = None
     status: Optional[str] = None
-
-class Timesheet(TimesheetBase):
+class TimesheetFileBase(BaseModel):
+    file_path: str
+class TimesheetFile(BaseModel):
     id: int
-    status: Optional[str] = None 
-    foreman_name: Optional[str] = None  # optional, fill via join
-  # add if your schema expects 'status'
-    model_config = model_config
+    timesheet_id: int
+    foreman_id: int
+    file_path: str
+    created_at: Optional[datetime]
+
+    model_config = ConfigDict(from_attributes=True)
+class Timesheet(BaseModel):
+    id: int
+    foreman_id: int
+    date: date
+    timesheet_name: Optional[str]
+    data: Dict[str, Any]
+    files: List[TimesheetFile] = []
+    
+    model_config = ConfigDict(from_attributes=True)
+
 
 class TimesheetResponse(BaseModel):
     id: int
@@ -211,6 +225,7 @@ class TimesheetResponse(BaseModel):
     sent: bool
     job_name: str
     model_config = model_config
+
 
 # ===============================
 #         APP DATA

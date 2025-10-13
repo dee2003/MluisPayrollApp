@@ -1,8 +1,9 @@
-from sqlalchemy import Column, Integer, String, Identity, ForeignKey, Boolean, Date
+from sqlalchemy import Column, Integer, String, Identity, ForeignKey, Boolean, Date,DateTime,func
 from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from .database import Base
 from datetime import date
+from datetime import datetime
 
 class User(Base):
     __tablename__ = "users"
@@ -107,6 +108,35 @@ class Timesheet(Base):
     date = Column(Date, default=date.today)
     data = Column(JSON, nullable=True)
     sent = Column(Boolean, default=False)
-    status = Column(String, default="pending")  # <-- add this
+    status = Column(String, default="pending")
 
+    # Relationships
     foreman = relationship("User", back_populates="timesheets")
+    files = relationship("TimesheetFile", back_populates="timesheet", cascade="all, delete-orphan")
+    workflow_entries = relationship("TimesheetWorkflow", back_populates="timesheet", cascade="all, delete-orphan")
+
+class TimesheetFile(Base):
+    __tablename__ = "timesheet_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timesheet_id = Column(Integer, ForeignKey("timesheets.id"), nullable=False)
+    foreman_id = Column(Integer, nullable=False)  # Add this field
+    file_path = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    timesheet = relationship("Timesheet", back_populates="files")
+class TimesheetWorkflow(Base):
+    __tablename__ = "timesheet_workflow"
+
+    id = Column(Integer, primary_key=True)
+    timesheet_id = Column(Integer, ForeignKey("timesheets.id", ondelete="CASCADE"))
+    foreman_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    supervisor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    action = Column(String)   # 'sent', 'reviewed', 'approved', etc.
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    timesheet = relationship("Timesheet", back_populates="workflow_entries")
+    foreman = relationship("User", foreign_keys=[foreman_id])
+    supervisor = relationship("User", foreign_keys=[supervisor_id])
+

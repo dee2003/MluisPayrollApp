@@ -192,6 +192,9 @@ class TimesheetBase(BaseModel):
 
 class TimesheetCreate(TimesheetBase):
     status: str = "Pending"
+    job_phase_id: Optional[int] = None
+
+
 
 class TimesheetUpdate(BaseModel):
     data: Optional[Dict[str, Any]] = None
@@ -275,3 +278,44 @@ class DailySubmissionCreate(BaseModel):
 # For supervisor requesting changes
 class RequestChanges(BaseModel):
     note: str
+# C:\admin_webpage\backend\schemas.py
+
+# ... (keep all your existing imports and schemas)
+from datetime import date
+from typing import List, Optional
+
+# ===============================
+#     	SUPERVISOR REVIEW
+# ===============================
+
+class Notification(BaseModel):
+    """Data for each foreman card on the supervisor dashboard."""
+    id: int
+    foreman_id: int
+    foreman_name: str
+    foreman_email: str
+    date: date
+    ticket_count: int
+    timesheet_count: int
+
+class UnreviewedItem(BaseModel):
+    """Details of items blocking submission."""
+    foreman_name: str
+    count: int
+
+class ValidationResponse(BaseModel):
+    """Response for the pre-submission status check."""
+    can_submit: bool
+    unreviewed_timesheets: List[UnreviewedItem] = []
+    incomplete_tickets: List[UnreviewedItem] = []
+
+class TicketSummary(BaseModel):
+    """Schema for listing tickets."""
+    id: int
+    ticket_number: Optional[str] = None
+    job_name: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+

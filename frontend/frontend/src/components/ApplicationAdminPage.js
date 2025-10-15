@@ -1,16 +1,17 @@
 import React, { useState, useEffect } from "react";
 import TimesheetForm from "./TimesheetForm";
 import axios from "axios";
-import "./application.css"; // The new CSS file
+import "./application.css";
 
 const API_URL = "http://127.0.0.1:8000/api";
 
 export default function ApplicationAdminPage() {
     const [showForm, setShowForm] = useState(false);
     const [timesheets, setTimesheets] = useState([]);
-    const [mappings, setMappings] = useState({}); // key = foremanId
+    const [mappings, setMappings] = useState({});
     const [loadingMappings, setLoadingMappings] = useState({});
     const [error, setError] = useState("");
+    const [expandedCardId, setExpandedCardId] = useState(null); // <-- New state for expanded card
 
     const fetchTimesheets = async () => {
         try {
@@ -35,12 +36,22 @@ export default function ApplicationAdminPage() {
         }
     };
 
-    // --- Logout Functionality ---
+    // --- New handler for clicking on a card ---
+    const handleCardClick = (timesheet) => {
+        const { id, foreman_id } = timesheet;
+        if (expandedCardId === id) {
+            // If card is already expanded, collapse it
+            setExpandedCardId(null);
+        } else {
+            // Otherwise, expand this card
+            setExpandedCardId(id);
+            // And fetch its crew details if we haven't already
+            fetchMapping(foreman_id);
+        }
+    };
+
     const handleLogout = () => {
-        // Replace 'authToken' with the key you use to store the user's token
         localStorage.removeItem('authToken');
-        
-        // Reload the page to redirect to the login screen or home page
         window.location.reload();
     };
 
@@ -50,30 +61,22 @@ export default function ApplicationAdminPage() {
 
     return (
         <div className="admin-page-container">
-            {/* Header */}
             <header className="admin-header">
                 <h1>Admin Dashboard</h1>
                 <div className="header-buttons">
-                    {/* --- Updated Logout Button --- */}
-                    <button
-                        className="btn btn-secondary"
-                        onClick={handleLogout}>
+                    <button className="btn btn-secondary" onClick={handleLogout}>
                         Logout
                     </button>
-                    <button
-                        onClick={() => setShowForm(true)}
-                        className="btn btn-primary">
+                    <button onClick={() => setShowForm(true)} className="btn btn-primary">
                         + Create Timesheet
                     </button>
                 </div>
             </header>
 
-            {/* Timesheet Form Modal */}
             {showForm && <TimesheetForm onClose={() => { setShowForm(false); fetchTimesheets(); }} />}
 
             {error && <p className="error-message">{error}</p>}
 
-            {/* Timesheet Cards */}
             <section className="timesheet-grid">
                 {timesheets.length ? (
                     timesheets.map(ts => {
@@ -83,6 +86,7 @@ export default function ApplicationAdminPage() {
                                 key={ts.id}
                                 className="timesheet-card"
                                 aria-label={`Timesheet: ${ts.timesheet_name}`}
+                                onClick={() => handleCardClick(ts)} // <-- Add onClick handler here
                             >
                                 <div className="card-header">
                                     <h2>{ts.timesheet_name}</h2>
@@ -93,22 +97,25 @@ export default function ApplicationAdminPage() {
                                 <div className="card-details">
                                     <p>
                                         <strong>Foreman:</strong>{" "}
-                                        <span
-                                            className="foreman-link"
-                                            onClick={() => fetchMapping(ts.foreman_id)}
-                                        >
-                                            {ts.foreman_name}
-                                        </span>
+                                        {/* This will now display the name from the API */}
+                                        <span className="foreman-link">{ts.foreman_name}</span>
                                     </p>
-                                    {loadingMappings[ts.foreman_id] && <p>Loading crew details...</p>}
-                                    {mapping && (
-                                        <div className="crew-details-box">
-                                            <p><strong>Employees:</strong> {mapping.employees?.map(e => `${e.first_name} ${e.last_name}`).join(", ") || "N/A"}</p>
-                                            <p><strong>Equipment:</strong> {mapping.equipment?.map(eq => eq.name).join(", ") || "N/A"}</p>
-                                            <p><strong>Materials:</strong> {mapping.materials?.map(mat => mat.name).join(", ") || "N/A"}</p>
-                                            <p><strong>Vendors:</strong> {mapping.vendors?.map(ven => ven.name).join(", ") || "N/A"}</p>
-                                        </div>
+
+                                    {/* --- Conditionally render details only for the expanded card --- */}
+                                    {expandedCardId === ts.id && (
+                                        <>
+                                            {loadingMappings[ts.foreman_id] && <p>Loading crew details...</p>}
+                                            {mapping && (
+                                                <div className="crew-details-box">
+                                                    <p><strong>Employees:</strong> {mapping.employees?.map(e => `${e.first_name} ${e.last_name}`).join(", ") || "N/A"}</p>
+                                                    <p><strong>Equipment:</strong> {mapping.equipment?.map(eq => eq.name).join(", ") || "N/A"}</p>
+                                                    <p><strong>Materials:</strong> {mapping.materials?.map(mat => mat.name).join(", ") || "N/A"}</p>
+                                                    <p><strong>Vendors:</strong> {mapping.vendors?.map(ven => ven.name).join(", ") || "N/A"}</p>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
+
                                     <p><strong>Job Code:</strong> {ts.data?.job?.job_code || "N/A"}</p>
                                     <p><strong>Phases:</strong> {ts.data?.job?.phase_codes?.join(", ") || "N/A"}</p>
                                 </div>

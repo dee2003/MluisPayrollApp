@@ -57,6 +57,8 @@ day?:string;
   materials: MaterialWorkLog[];
   vendors: VendorWorkLog[];
     notes?: string; 
+    total_quantities_per_phase?: Record<string, string | number>; 
+
 
 }
 

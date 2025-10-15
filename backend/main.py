@@ -7,7 +7,9 @@ from .crud import create_crud_router
 from .routers.timesheet import router as timesheet_router
 from .routers.equipment import router as equipment_router
 from fastapi.staticfiles import StaticFiles
-
+from .routers import timesheet
+from .routers import tickets
+from .routers import review
 # Create all database tables if they don't exist
 models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI()
@@ -239,3 +241,16 @@ def login(credentials: schemas.LoginRequest, db: Session = Depends(database.get_
 
 app.include_router(auth_router)
 
+
+from .ocr import ocr_main
+app.include_router(ocr_main.router)
+from fastapi.staticfiles import StaticFiles
+import os
+TICKETS_DIR = r"C:\admin_webpage\backend\storage\Tickets"
+app.mount("/media/tickets", StaticFiles(directory=os.path.abspath(TICKETS_DIR)), name="tickets")
+app.include_router(tickets.router)
+app.include_router(review.router)
+from .routers import submissions
+app.include_router(submissions.router)
+from .routers import tickets
+app.include_router(tickets.router)

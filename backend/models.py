@@ -20,7 +20,7 @@ class User(Base):
     last_name = Column(String, nullable=False)
     password = Column(String, nullable=False)
     role = Column(String, nullable=False)
-
+    tickets = relationship("Ticket", back_populates="foreman", cascade="all, delete-orphan")
     # ✅ Cascade delete: delete all timesheets & crew mappings when user is deleted
     timesheets = relationship(
         "Timesheet",
@@ -34,7 +34,7 @@ class User(Base):
         cascade="all, delete-orphan",
         passive_deletes=True
     )
-
+    assigned_jobs = relationship("ForemanJob", back_populates="foreman", cascade="all, delete-orphan")
 
 class Employee(Base):
     __tablename__ = "employees"
@@ -69,7 +69,7 @@ class JobPhase(Base):
     jurisdiction = Column(String, nullable=True)
     status = Column(String, default="Active")  # or use an Enum type
     phase_codes = Column(JSONB, nullable=False)
-
+    assigned_foremen = relationship("ForemanJob", back_populates="job_phase", cascade="all, delete-orphan")
 
 
 class Material(Base):
@@ -114,13 +114,16 @@ class Timesheet(Base):
     sent = Column(Boolean, default=False)
     status = Column(String, default="pending")
     submission_id = Column(Integer, ForeignKey("daily_submissions.id"), nullable=True)
+    reviewed_by_supervisor = Column(Boolean, default=False)
+    sent_date = Column(DateTime, nullable=True)  # NEW
 
     # Relationships
     foreman = relationship("User", back_populates="timesheets")
     files = relationship("TimesheetFile", back_populates="timesheet", cascade="all, delete-orphan")
     workflow_entries = relationship("TimesheetWorkflow", back_populates="timesheet", cascade="all, delete-orphan")
     submission = relationship("DailySubmission", back_populates="timesheets")  # NEW
-
+    job_phase_id = Column(Integer, ForeignKey("job_phases.id"), nullable=True)  # link directly
+    job_phase = relationship("JobPhase")
 class TimesheetFile(Base):
     __tablename__ = "timesheet_files"
 
@@ -157,14 +160,43 @@ class DailySubmission(Base):
     date = Column(Date, nullable=False, index=True)
     foreman_id = Column(Integer, ForeignKey("users.id"), nullable=False)
 
-    # Optional job linkage: use job_code or job_id if you have a jobs table
-    # If you don't have a jobs table, prefer job_code as string
+    # job_phase_id = Column(Integer, ForeignKey("job_phases.id"), nullable=True)  # <- Add this
     job_code = Column(String, nullable=True)
-
-    total_hours = Column(Float, default=0.0)
+    # total_hours = Column(Float, default=0.0)
     ticket_count = Column(Integer, default=0)
     status = Column(SQLAlchemyEnum(SubmissionStatus), default=SubmissionStatus.PENDING_REVIEW, nullable=False)
 
     # Relationships
     foreman = relationship("User")
+    # job_phase = relationship("JobPhase")  # Now SQLAlchemy knows how to join
+
     timesheets = relationship("Timesheet", back_populates="submission")
+
+
+class Ticket(Base):
+    """SQLAlchemy model for the Ticket table."""
+    __tablename__ = "tickets"
+    id = Column(Integer, primary_key=True, index=True)
+    extracted_text = Column(String, index=True, nullable=False)
+    # This line is the crucial addition
+    image_path = Column(String, nullable=True)  # Path to the saved image file
+    #owner_id = Column(Integer, ForeignKey("users.id"))
+    created_at = Column(DateTime, default=func.now())
+    #owner = relationship("User", back_populates="tickets")
+    foreman_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    date = Column(Date, nullable=False)  # ← ADD THIS LINE
+
+    # Relationships
+    foreman = relationship("User", back_populates="tickets")
+    job_phase_id = Column(Integer, ForeignKey("job_phases.id"), nullable=True)
+    job_phase = relationship("JobPhase")
+
+
+class ForemanJob(Base):
+    __tablename__ = "foreman_jobs"
+    id = Column(Integer, primary_key=True, index=True)
+    foreman_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    job_phase_id = Column(Integer, ForeignKey("job_phases.id", ondelete="CASCADE"))
+    # Relationships
+    foreman = relationship("User", back_populates="assigned_jobs")
+    job_phase = relationship("JobPhase", back_populates="assigned_foremen")

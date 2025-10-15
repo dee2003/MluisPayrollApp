@@ -141,7 +141,7 @@ const LoginScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Timesheet App</Text>
+      <Text style={styles.title}>Mluis Payroll</Text>
       <TextInput style={styles.input} placeholder="Username" value={username} onChangeText={setUsername} autoCapitalize="none" />
       <TextInput style={styles.input} placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
       <Button title="Login" onPress={handleLogin} />

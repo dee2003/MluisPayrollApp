@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, field_validator, EmailStr
 from typing import Optional, List, Any, Dict
 from datetime import date
 from datetime import date, datetime
+from .models import SubmissionStatus
 
 # --- Shared Pydantic v2 config ---
 model_config = ConfigDict(from_attributes=True)
@@ -205,15 +206,23 @@ class TimesheetFile(BaseModel):
     created_at: Optional[datetime]
 
     model_config = ConfigDict(from_attributes=True)
+# In schemas.py
+
+# In schemas.py
+
 class Timesheet(BaseModel):
     id: int
     foreman_id: int
     date: date
     timesheet_name: Optional[str]
     data: Dict[str, Any]
+    sent: bool                  # <-- ADD THIS FIELD
+    status: str                 # <-- ADD THIS FIELD
     files: List[TimesheetFile] = []
     
     model_config = ConfigDict(from_attributes=True)
+
+
 
 
 class TimesheetResponse(BaseModel):
@@ -241,3 +250,28 @@ class AppData(BaseModel):
 class LoginRequest(BaseModel):
     username: str
     password: str
+class DailySubmissionBase(BaseModel):
+    date: date
+    foreman_id: int
+    job_code: Optional[str] = None
+    total_hours: float
+    ticket_count: int
+    status: SubmissionStatus
+class DailySubmission(DailySubmissionBase):
+    id: int
+    # Denormalized read-only fields for the supervisor dashboard
+    foreman_name: str
+    job_name: Optional[str] = None  # optional convenience if you resolve job name server-side
+
+    class Config:
+        from_attributes = True  # pydantic v2; use orm_mode=True for pydantic v1
+class DailySubmissionCreate(BaseModel):
+    date: date
+    timesheet_ids: List[int]
+    ticket_ids: List[int] = []      # if you have tickets
+    job_code: Optional[str] = None  # optional
+
+
+# For supervisor requesting changes
+class RequestChanges(BaseModel):
+    note: str

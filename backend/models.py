@@ -4,7 +4,11 @@ from sqlalchemy.dialects.postgresql import JSONB
 from .database import Base
 from datetime import date
 from datetime import datetime
-
+import enum
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import (
+    Column, Integer, String, Identity, ForeignKey, Boolean, Date, DateTime, Float, Enum as SQLAlchemyEnum, JSON
+)
 class User(Base):
     __tablename__ = "users"
 
@@ -109,11 +113,13 @@ class Timesheet(Base):
     data = Column(JSON, nullable=True)
     sent = Column(Boolean, default=False)
     status = Column(String, default="pending")
+    submission_id = Column(Integer, ForeignKey("daily_submissions.id"), nullable=True)
 
     # Relationships
     foreman = relationship("User", back_populates="timesheets")
     files = relationship("TimesheetFile", back_populates="timesheet", cascade="all, delete-orphan")
     workflow_entries = relationship("TimesheetWorkflow", back_populates="timesheet", cascade="all, delete-orphan")
+    submission = relationship("DailySubmission", back_populates="timesheets")  # NEW
 
 class TimesheetFile(Base):
     __tablename__ = "timesheet_files"
@@ -140,3 +146,25 @@ class TimesheetWorkflow(Base):
     foreman = relationship("User", foreign_keys=[foreman_id])
     supervisor = relationship("User", foreign_keys=[supervisor_id])
 
+class SubmissionStatus(str, enum.Enum):
+    PENDING_REVIEW = "PENDING_REVIEW"
+    APPROVED = "APPROVED"
+    CHANGES_REQUESTED = "CHANGES_REQUESTED"
+class DailySubmission(Base):
+    __tablename__ = "daily_submissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False, index=True)
+    foreman_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    # Optional job linkage: use job_code or job_id if you have a jobs table
+    # If you don't have a jobs table, prefer job_code as string
+    job_code = Column(String, nullable=True)
+
+    total_hours = Column(Float, default=0.0)
+    ticket_count = Column(Integer, default=0)
+    status = Column(SQLAlchemyEnum(SubmissionStatus), default=SubmissionStatus.PENDING_REVIEW, nullable=False)
+
+    # Relationships
+    foreman = relationship("User")
+    timesheets = relationship("Timesheet", back_populates="submission")

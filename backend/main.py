@@ -227,8 +227,8 @@ app.include_router(crew_mapping_router)
 app.include_router(timesheet_router)
 # main.py
 app.include_router(equipment_router)
-
-
+from .routers import submissions
+app.include_router(submissions.router)
 # --- Main Data Endpoint ---
 # This endpoint fetches all initial data for the admin dashboard.
 @app.get("/api/data", response_model=schemas.AppData, tags=["App Data"])

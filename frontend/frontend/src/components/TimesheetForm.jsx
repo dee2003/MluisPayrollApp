@@ -305,7 +305,7 @@ const TimesheetForm = ({ onClose }) => {
 
   const timeOfDayOptions = ["Morning", "Afternoon", "Evening", "Night"];
   const weatherOptions = ["Sunny", "Cloudy", "Rainy", "Snowy", "Windy"];
-
+  const [selectedJobPhaseId, setSelectedJobPhaseId] = useState(null);
   // --- Load foremen and job codes ---
   useEffect(() => {
     axios.get(`${API_URL}/users/?role=foreman`).then((res) => setForemen(res.data));
@@ -333,6 +333,7 @@ const TimesheetForm = ({ onClose }) => {
       setJobData(null);
       setJobName("");
       setProjectEngineer("");
+      setSelectedJobPhaseId(null);
       return;
     }
 
@@ -345,11 +346,13 @@ const TimesheetForm = ({ onClose }) => {
         // ✅ FIXED: handle both possible field names from backend
         setJobName(res.data.job_name || res.data.job_description || "");
         setProjectEngineer(res.data.project_engineer || "");
+        setSelectedJobPhaseId(res.data.id);
       })
       .catch(() => {
         setJobData(null);
         setJobName("");
         setProjectEngineer("");
+        setSelectedJobPhaseId(null);
       });
   }, [selectedJobCode]);
 
@@ -386,6 +389,7 @@ const TimesheetForm = ({ onClose }) => {
     const payload = {
       foreman_id: parseInt(selectedForemanId, 10),
       date,
+      job_phase_id: selectedJobPhaseId, 
       data: timesheetData,
     };
 

@@ -3,6 +3,8 @@ export interface User {
   username: string;
   role: 'foreman' | 'supervisor' | 'project_engineer' | 'admin';
   token: string;
+  first_name: string; // Add this line
+  last_name: string;  // Add this line
 }
 
 export type EmployeeWorkLog = {
@@ -55,6 +57,8 @@ day?:string;
   equipment: EquipmentWorkLog[];
   materials: MaterialWorkLog[];
   vendors: VendorWorkLog[];
+    notes?: string; 
+
 }
 
 export interface Timesheet {
@@ -65,3 +69,19 @@ export interface Timesheet {
   data: TimesheetData;
   status: 'Pending' | 'Submitted' | 'Approved' | 'Rejected'; 
 }
+// types.ts
+export type SubmissionStatus = 'PENDING_REVIEW' | 'APPROVED' | 'CHANGES_REQUESTED';
+
+export interface DailySubmissionSummary {
+  submissionId: string;        // created by backend on submit
+  date: string;                // 'YYYY-MM-DD'
+  foremanId: string;
+  foremanName: string;
+  jobName: string;
+  totalHours: number;
+  ticketCount: number;
+  status: SubmissionStatus;
+}
+// /src/types/index.ts
+
+

@@ -4,7 +4,11 @@ from sqlalchemy.dialects.postgresql import JSONB
 from .database import Base
 from datetime import date
 from datetime import datetime
-
+import enum
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import (
+    Column, Integer, String, Identity, ForeignKey, Boolean, Date, DateTime, Float, Enum as SQLAlchemyEnum, JSON
+)
 class User(Base):
     __tablename__ = "users"
 
@@ -30,7 +34,7 @@ class User(Base):
         cascade="all, delete-orphan",
         passive_deletes=True
     )
-
+    assigned_jobs = relationship("ForemanJob", back_populates="foreman", cascade="all, delete-orphan")
 class Ticket(Base):
     """SQLAlchemy model for the Ticket table."""
     __tablename__ = "tickets"
@@ -47,7 +51,8 @@ class Ticket(Base):
 
     # Relationships
     foreman = relationship("User", back_populates="tickets")
-
+    job_phase_id = Column(Integer, ForeignKey("job_phases.id"), nullable=True)
+    job_phase = relationship("JobPhase")
 class Employee(Base):
     __tablename__ = "employees"
 
@@ -82,6 +87,7 @@ class JobPhase(Base):
     status = Column(String, default="Active")  # or use an Enum type
     phase_codes = Column(JSONB, nullable=False)
 
+    assigned_foremen = relationship("ForemanJob", back_populates="job_phase", cascade="all, delete-orphan")
 
 
 class Material(Base):
@@ -125,12 +131,16 @@ class Timesheet(Base):
     data = Column(JSON, nullable=True)
     sent = Column(Boolean, default=False)
     status = Column(String, default="pending")
+    submission_id = Column(Integer, ForeignKey("daily_submissions.id"), nullable=True)
 
     # Relationships
     foreman = relationship("User", back_populates="timesheets")
     files = relationship("TimesheetFile", back_populates="timesheet", cascade="all, delete-orphan")
     workflow_entries = relationship("TimesheetWorkflow", back_populates="timesheet", cascade="all, delete-orphan")
+    submission = relationship("DailySubmission", back_populates="timesheets")  # NEW
 
+    job_phase_id = Column(Integer, ForeignKey("job_phases.id"), nullable=True)  # link directly
+    job_phase = relationship("JobPhase")
 class TimesheetFile(Base):
     __tablename__ = "timesheet_files"
 
@@ -156,3 +166,73 @@ class TimesheetWorkflow(Base):
     foreman = relationship("User", foreign_keys=[foreman_id])
     supervisor = relationship("User", foreign_keys=[supervisor_id])
 
+class SubmissionStatus(str, enum.Enum):
+    PENDING_REVIEW = "PENDING_REVIEW"
+    APPROVED = "APPROVED"
+    CHANGES_REQUESTED = "CHANGES_REQUESTED"
+class DailySubmission(Base):
+    __tablename__ = "daily_submissions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    date = Column(Date, nullable=False, index=True)
+    foreman_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    # job_phase_id = Column(Integer, ForeignKey("job_phases.id"), nullable=False)
+
+    # Optional job linkage: use job_code or job_id if you have a jobs table
+    # If you don't have a jobs table, prefer job_code as string
+    job_code = Column(String, nullable=True)
+
+    ticket_count = Column(Integer, default=0)
+    status = Column(SQLAlchemyEnum(SubmissionStatus), default=SubmissionStatus.PENDING_REVIEW, nullable=False)
+
+    # Relationships
+    foreman = relationship("User")
+    # job_phase = relationship("JobPhase")
+    timesheets = relationship("Timesheet", back_populates="submission")
+
+
+
+    
+    
+
+
+
+
+
+class ForemanJob(Base):
+    __tablename__ = "foreman_jobs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    foreman_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    job_phase_id = Column(Integer, ForeignKey("job_phases.id", ondelete="CASCADE"))
+
+    # Relationships
+    foreman = relationship("User", back_populates="assigned_jobs")
+    job_phase = relationship("JobPhase", back_populates="assigned_foremen")
+
+
+# from sqlalchemy import Column, Integer, ForeignKey, Date, Float, Enum as SQLAlchemyEnum
+# from sqlalchemy.orm import relationship
+# import enum
+
+# class SubmissionStatus(str, enum.Enum):
+#     PENDING_REVIEW = "PENDING_REVIEW"
+#     APPROVED = "APPROVED"
+#     CHANGES_REQUESTED = "CHANGES_REQUESTED"
+
+# class DailySubmission(Base):
+#     __tablename__ = "daily_submissions"
+
+#     id = Column(Integer, primary_key=True, index=True)
+#     date = Column(Date, nullable=False, index=True)
+#     foreman_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+#     job_phase_id = Column(Integer, ForeignKey("job_phases.id"), nullable=False)
+
+    
+#     ticket_count = Column(Integer, default=0)  # Optional: count of tickets
+#     status = Column(SQLAlchemyEnum(SubmissionStatus), default=SubmissionStatus.PENDING_REVIEW, nullable=False)
+
+#     # Relationships to easily access linked objects
+#     foreman = relationship("User")
+#     job_phase = relationship("JobPhase")
+#     timesheets = relationship("Timesheet", back_populates="submission")

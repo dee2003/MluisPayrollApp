@@ -359,18 +359,28 @@ const AdminDashboard = ({ data: initialData, onLogout }) => {
                     defaultValue: "admin" 
                 }
             ];
-case "employee": return [
+case "employee": 
+  return [
     { name: "id", label: "Employee ID", required: true },
     { name: "first_name", label: "First Name", required: true },
-    { name: "middle_name", label: "Middle Name" },  // new field
+    { name: "middle_name", label: "Middle Name" },
     { name: "last_name", label: "Last Name", required: true },
-    { name: "employee_class_1", label: "Class Code 1" }, // new field
-    { name: "employee_class_2", label: "Class Code 2" }, // new field
-    { name: "status", label: "Status", type: "select", options: [
+    { name: "class_1", label: "Class Code 1" },
+    { name: "class_2", label: "Class Code 2" },
+    { 
+      name: "status", 
+      label: "Status", 
+      type: "select", 
+      options: [
         { value: "Active", label: "Active" },
         { value: "Inactive", label: "Inactive" }
-    ], required: true, defaultValue: "Active" }
-];
+      ], 
+      required: true, 
+      defaultValue: "Active" 
+    }
+  ];
+
+
             case "equipment": return [ { name: "id", label: "Equipment ID", required: true }, { name: "name", label: "Equipment Name", required: true }, { name: "type", label: "Type" }, { name: "status", label: "Status", type: "select", options: [ { value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" } ], required: true, defaultValue: "Active" } ];
             case "vendor": return [ { name: "name", label: "Vendor Name", required: true }, { name: "unit", label: "Unit", required: true }, { name: "status", label: "Status", type: "select", options: [ { value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" } ], required: true, defaultValue: "Active" } ];
             case "material": return [ { name: "name", label: "Material Name", required: true }, { name: "status", label: "Status", type: "select", options: [ { value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" } ], required: true, defaultValue: "Active" } ];
@@ -406,7 +416,20 @@ case "employee": return [
         switch (activeSection) {
             case "dashboard": return <DashboardSection stats={data} />;
             case "users": return makeTable("user", "User Management", ["Username", "First Name", "Last Name", "Role"], u => <><td key={u.username}>{u.username}</td><td key={u.first_name}>{u.first_name}</td><td key={u.last_name}>{u.last_name}</td><td key={u.role}>{u.role}</td></>);
-            case "employees": return makeTable("employee", "Employee Management", ["ID", "Name", "Class", "Status"], e => <><td key={e.id}>{e.id}</td><td key={`${e.first_name}-${e.last_name}`}>{`${e.first_name} ${e.last_name}`}</td><td key={e.employee_class}>{e.employee_class}</td><td key={e.status}>{e.status}</td></>);
+case "employees": 
+  return makeTable(
+    "employee", 
+    "Employee Management", 
+    ["ID", "Name", "Class", "Status"], 
+    e => (
+      <>
+        <td key={e.id}>{e.id}</td>
+        <td key={`${e.first_name}-${e.last_name}`}>{`${e.first_name} ${e.last_name}`}</td>
+        <td key={e.status}>{`${e.class_1 || ""}${e.class_2 ? " / " + e.class_2 : ""}`}</td>
+        <td key={e.status}>{e.status}</td>
+      </>
+    )
+  );
             case "equipment": return makeTable("equipment", "Equipment Management", ["ID", "Name", "Type", "Status"], e => <><td key={e.id}>{e.id}</td><td key={e.name}>{e.name}</td><td key={e.type}>{e.type}</td><td key={e.status}>{e.status}</td></>);
             case "vendors": return makeTable("vendor", "Vendors", ["Name", "Unit", "Status"], v => <><td key={v.name}>{v.name}</td><td key={v.unit}>{v.unit}</td><td key={v.status}>{v.status}</td></>);
             case "materials": return makeTable("material", "Material Management", ["Name", "Status"], m => <><td key={m.name}>{m.name}</td><td key={m.status}>{m.status}</td></>);

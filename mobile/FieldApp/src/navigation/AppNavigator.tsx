@@ -1,5 +1,3 @@
-// /src/navigation/AppNavigator.tsx
-
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useAuth } from '../context/AuthContext';
@@ -8,10 +6,12 @@ import LoginScreen from '../screens/LoginScreen';
 import ForemanDashboard from '../screens/foreman/ForemanDashboard';
 import TimesheetListScreen from '../screens/foreman/TimesheetListScreen';
 import TimesheetEditScreen from '../screens/foreman/TimesheetEditScreen';
-import ScanTicket from '../screens/foreman/ScanTicket';
+// import ScanTicket from '../screens/foreman/ScanTicket';
 
+import SupervisorDashboard from '../screens/supervisor/SupervisorDashboard';
+import TimesheetViewScreen from '../screens/supervisor/TimesheetViewScreen';
 
-// --- Updated Param List ---
+// -------------------- Foreman Stack --------------------
 export type ForemanStackParamList = {
   ForemanDashboard: undefined;
   TimesheetList: undefined;
@@ -20,13 +20,7 @@ export type ForemanStackParamList = {
   ScanTicket: undefined; 
 };
 
-export type RootStackParamList = {
-    Login: undefined;
-    Foreman: undefined; 
-};
-
 const ForemanStack = createStackNavigator<ForemanStackParamList>();
-const RootStack = createStackNavigator<RootStackParamList>();
 
 const ForemanNavigator = () => (
     <ForemanStack.Navigator>
@@ -46,14 +40,46 @@ const ForemanNavigator = () => (
             options={{ title: 'Enter Hours' }}
         />
         
-        <ForemanStack.Screen
+        {/* <ForemanStack.Screen
   name="ScanTicket"
   component={ScanTicket}
   options={{ title: 'Scan Ticket' }}
-/>
+/> */}
 
     </ForemanStack.Navigator>
 );
+
+// -------------------- Supervisor Stack --------------------
+export type SupervisorStackParamList = {
+  SupervisorDashboard: undefined;
+  TimesheetView: { timesheetId: number };
+};
+
+const SupervisorStack = createStackNavigator<SupervisorStackParamList>();
+
+const SupervisorNavigator = () => (
+  <SupervisorStack.Navigator>
+    <SupervisorStack.Screen
+      name="SupervisorDashboard"
+      component={SupervisorDashboard}
+      options={{ headerShown: false }}
+    />
+    <SupervisorStack.Screen
+      name="TimesheetView"
+      component={TimesheetViewScreen}
+      options={{ title: 'Timesheet Details' }}
+    />
+  </SupervisorStack.Navigator>
+);
+
+// -------------------- Root Stack --------------------
+export type RootStackParamList = {
+  Login: undefined;
+  Foreman: undefined;
+  Supervisor: undefined;
+};
+
+const RootStack = createStackNavigator<RootStackParamList>();
 
 const AppNavigator = () => {
   const { user } = useAuth();
@@ -61,11 +87,26 @@ const AppNavigator = () => {
   return (
     <RootStack.Navigator>
       {!user ? (
-        <RootStack.Screen name="Login" component={LoginScreen} options={{ headerShown: false }} />
+        <RootStack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{ headerShown: false }}
+        />
       ) : (
         <>
           {user.role === 'foreman' && (
-            <RootStack.Screen name="Foreman" component={ForemanNavigator} options={{ headerShown: false }} />
+            <RootStack.Screen
+              name="Foreman"
+              component={ForemanNavigator}
+              options={{ headerShown: false }}
+            />
+          )}
+          {user.role === 'supervisor' && (
+            <RootStack.Screen
+              name="Supervisor"
+              component={SupervisorNavigator}
+              options={{ headerShown: false }}
+            />
           )}
         </>
       )}

@@ -50,7 +50,6 @@ const LoginScreen = ({ onLogin, users }) => {
                     <select name="role" className="form-control" required>
                         <option value="">Select Role</option>
                         <option value="admin">Admin</option>
-                        <option value="foreman">Foreman</option>
                         <option value="appadmin">Application Admin</option>
                     </select>
                 </div>

@@ -7,12 +7,15 @@ from .crud import create_crud_router
 from .routers.timesheet import router as timesheet_router
 import logging
 import sys
+from .routers.equipment import router as equipment_router
+from fastapi.staticfiles import StaticFiles
+
 # Create all database tables if they don't exist
 models.Base.metadata.create_all(bind=database.engine)
-
-
 app = FastAPI()
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
+app.mount("/storage", StaticFiles(directory="storage"), name="storage")
+
 
 # 2. Get the Uvicorn access logger
 access_logger = logging.getLogger("uvicorn.access")
@@ -215,10 +218,15 @@ for item in crud_models:
     
 from .ocr import ocr_main
 app.include_router(ocr_main.router)
-   
+from fastapi.staticfiles import StaticFiles
+import os
+TICKETS_DIR = r"D:\git\mluis_app\backend\tickets"
+app.mount("/media/tickets", StaticFiles(directory=os.path.abspath(TICKETS_DIR)), name="tickets")
 app.include_router(job_phase_router)
 app.include_router(crew_mapping_router)
 app.include_router(timesheet_router)
+# main.py
+app.include_router(equipment_router)
 
 
 # --- Main Data Endpoint ---

@@ -52,9 +52,7 @@ const TimesheetListScreen = () => {
           <Text style={styles.jobName}>{item.data.job_name}</Text>
           <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
         </View>
-        <View style={[styles.statusBadge, styles[`status${item.status}`]]}>
-            <Text style={styles.statusText}>{item.status}</Text>
-        </View>
+        
       </View>
     </TouchableOpacity>
   );

@@ -339,8 +339,38 @@ const AdminDashboard = ({ data: initialData, onLogout }) => {
 
     const getFormFields = (type) => {
         switch (type) {
-            case "user": return [ { name: "username", label: "Username", required: true }, { name: "email", label: "Email", required: true, type: "email" }, { name: "first_name", label: "First Name", required: true }, { name: "last_name", label: "Last Name", required: true }, { name: "password", label: "Password", type: "password", required: true }, { name: "role", label: "Role", type: "select", options: [ { value: "admin", label: "Admin" }, { value: "foreman", label: "Foreman" }, { value: "project_engineer", label: "Project Engineer" }, { value: "supervisor", label: "Supervisor" } ], required: true, defaultValue: "admin" } ];
-            case "employee": return [ { name: "id", label: "Employee ID", required: true }, { name: "first_name", label: "First Name", required: true }, { name: "last_name", label: "Last Name", required: true }, { name: "employee_class", label: "Class" }, { name: "status", label: "Status", type: "select", options: [ { value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" } ], required: true, defaultValue: "Active" } ];
+           case "user":
+            return [
+                { name: "username", label: "Username", required: true },
+                { name: "first_name", label: "First Name", required: true },
+                { name: "middle_name", label: "Middle Name" }, // <-- new field
+                { name: "last_name", label: "Last Name", required: true },
+                { name: "email", label: "Email", required: true, type: "email" },
+                { name: "password", label: "Password", type: "password", required: true },
+                { 
+                    name: "role", label: "Role", type: "select", 
+                    options: [
+                        { value: "admin", label: "Admin" },
+                        { value: "foreman", label: "Foreman" },
+                        { value: "project_engineer", label: "Project Engineer" },
+                        { value: "supervisor", label: "Supervisor" }
+                    ], 
+                    required: true, 
+                    defaultValue: "admin" 
+                }
+            ];
+case "employee": return [
+    { name: "id", label: "Employee ID", required: true },
+    { name: "first_name", label: "First Name", required: true },
+    { name: "middle_name", label: "Middle Name" },  // new field
+    { name: "last_name", label: "Last Name", required: true },
+    { name: "employee_class_1", label: "Class Code 1" }, // new field
+    { name: "employee_class_2", label: "Class Code 2" }, // new field
+    { name: "status", label: "Status", type: "select", options: [
+        { value: "Active", label: "Active" },
+        { value: "Inactive", label: "Inactive" }
+    ], required: true, defaultValue: "Active" }
+];
             case "equipment": return [ { name: "id", label: "Equipment ID", required: true }, { name: "name", label: "Equipment Name", required: true }, { name: "type", label: "Type" }, { name: "status", label: "Status", type: "select", options: [ { value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" } ], required: true, defaultValue: "Active" } ];
             case "vendor": return [ { name: "name", label: "Vendor Name", required: true }, { name: "unit", label: "Unit", required: true }, { name: "status", label: "Status", type: "select", options: [ { value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" } ], required: true, defaultValue: "Active" } ];
             case "material": return [ { name: "name", label: "Material Name", required: true }, { name: "status", label: "Status", type: "select", options: [ { value: "Active", label: "Active" }, { value: "Inactive", label: "Inactive" } ], required: true, defaultValue: "Active" } ];

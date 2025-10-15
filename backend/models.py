@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 from .database import Base
 from datetime import date
+from datetime import datetime
 
 class User(Base):
     __tablename__ = "users"
@@ -15,7 +16,7 @@ class User(Base):
     last_name = Column(String, nullable=False)
     password = Column(String, nullable=False)
     role = Column(String, nullable=False)
-    tickets = relationship("Ticket", back_populates="owner")
+    tickets = relationship("Ticket", back_populates="foreman", cascade="all, delete-orphan")
     # ✅ Cascade delete: delete all timesheets & crew mappings when user is deleted
     timesheets = relationship(
         "Timesheet",
@@ -42,14 +43,20 @@ class Ticket(Base):
     created_at = Column(DateTime, default=func.now())
 
     owner = relationship("User", back_populates="tickets")
+    foreman_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+
+    # Relationships
+    foreman = relationship("User", back_populates="tickets")
 
 class Employee(Base):
     __tablename__ = "employees"
 
     id = Column(String, primary_key=True, index=True)
     first_name = Column(String)
+    middle_name = Column(String, nullable=True)
     last_name = Column(String)
-    employee_class = Column("class", String)
+    class_1 = Column(String)   # Class code field 1
+    class_2 = Column(String)   # Class code field 2
     status = Column(String, default="Active")
 
 
@@ -117,5 +124,35 @@ class Timesheet(Base):
     date = Column(Date, default=date.today)
     data = Column(JSON, nullable=True)
     sent = Column(Boolean, default=False)
+    status = Column(String, default="pending")
 
+    # Relationships
     foreman = relationship("User", back_populates="timesheets")
+    files = relationship("TimesheetFile", back_populates="timesheet", cascade="all, delete-orphan")
+    workflow_entries = relationship("TimesheetWorkflow", back_populates="timesheet", cascade="all, delete-orphan")
+
+class TimesheetFile(Base):
+    __tablename__ = "timesheet_files"
+
+    id = Column(Integer, primary_key=True, index=True)
+    timesheet_id = Column(Integer, ForeignKey("timesheets.id"), nullable=False)
+    foreman_id = Column(Integer, nullable=False)  # Add this field
+    file_path = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    timesheet = relationship("Timesheet", back_populates="files")
+class TimesheetWorkflow(Base):
+    __tablename__ = "timesheet_workflow"
+
+    id = Column(Integer, primary_key=True)
+    timesheet_id = Column(Integer, ForeignKey("timesheets.id", ondelete="CASCADE"))
+    foreman_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    supervisor_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
+    action = Column(String)   # 'sent', 'reviewed', 'approved', etc.
+    timestamp = Column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    timesheet = relationship("Timesheet", back_populates="workflow_entries")
+    foreman = relationship("User", foreign_keys=[foreman_id])
+    supervisor = relationship("User", foreign_keys=[supervisor_id])
+

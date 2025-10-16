@@ -448,7 +448,8 @@ const ForemanDashboard = ({ navigation }: { navigation: any }) => {
   const { user, logout } = useAuth();
 
   // now DateGroup[] which includes optional submitted flag
-  const [imagesByDate, setImagesByDate] = useState<DateGroup[]>([]);
+  const [imagesByDate, setImagesByDate] = useState<{ date: string; images: TicketImage[]; submitted?: boolean }[]>([]);
+
   const [fullImageUri, setFullImageUri] = useState<string | null>(null);
 
   const [screen, setScreen] = useState<'dashboard' | 'scanning' | 'processing' | 'review'>('dashboard');
@@ -646,70 +647,79 @@ const ForemanDashboard = ({ navigation }: { navigation: any }) => {
   }
 
   if (screen === 'review') {
-    return (
-      <SafeAreaView style={styles.container}>
-        {renderHeader()}
-        <Text style={styles.title}>Scanned Images by Date</Text>
-        <ScrollView contentContainerStyle={styles.reviewScrollViewContent}>
-          {imagesByDate.length === 0 ? (
-            <Text style={{ textAlign: 'center', marginTop: 20 }}>No images found</Text>
-          ) : (
-            imagesByDate.map(group => (
-              <View key={group.date} style={styles.dateGroupContainer}>
-                <Text style={styles.dateTitle}>{group.date}</Text>
+  return (
+    <SafeAreaView style={styles.container}>
+      {renderHeader()}
 
-                {/* Horizontal Scroll View for Thumbnails */}
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.thumbnailScrollContainer}
-                >
-                  {group.images.map((img) => (
-                    <TouchableOpacity
-                      key={img.id}
-                      style={styles.thumbnailWrapper}
-                      onPress={() => {
-                        console.log('Opening image uri:', `${API_BASE_URL}${img.image_url}`);
-                        setFullImageUri(`${API_BASE_URL}${img.image_url}`);
-                      }}
-                    >
-                      <Image
-                        source={{ uri: `${API_BASE_URL}${img.image_url}` }}
-                        style={styles.thumbnailImage}
-                        resizeMode="contain" // Crucial: Use 'contain' to preserve aspect ratio
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
-
-                <View style={{ marginVertical: 8, paddingHorizontal: 10 }}>
-                  <Button
-  title={group.submitted ? "Submitted" : "Submit"}
-  disabled={group.submitted}
-  onPress={() => handleSubmit(group.date, group.images.map(img => img.id))}
-/>
-
-                </View>
-              </View>
-            ))
-          )}
-        </ScrollView>
-
-        {/* Full-screen image modal */}
-        {fullImageUri && (
-          <View style={styles.fullImageContainer}>
-            <Image source={{ uri: fullImageUri }} style={styles.fullImage} />
-            <TouchableOpacity style={styles.closeButton} onPress={() => setFullImageUri(null)}>
-              <Text style={{ color: '#fff' }}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-        <TouchableOpacity style={styles.buttonWide} onPress={() => setScreen('dashboard')}>
-          <Text style={styles.buttonText}>Back to Dashboard</Text>
+      {/* Top bar with back arrow and title */}
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => setScreen('dashboard')} style={styles.backButton}>
+          <Text style={styles.backArrow}>←</Text>
         </TouchableOpacity>
-      </SafeAreaView>
-    );
-  }
+        <Text style={styles.title}>Scanned Images by Date</Text>
+      </View>
+
+      <ScrollView contentContainerStyle={styles.reviewScrollViewContent}>
+        {imagesByDate.length === 0 ? (
+          <Text style={{ textAlign: 'center', marginTop: 20 }}>No images found</Text>
+        ) : (
+          imagesByDate.map(group => (
+            <View key={group.date} style={styles.dateGroupContainer}>
+              <View style={styles.dateHeaderRow}>
+                <Text style={styles.dateTitle}>📅 {group.date}</Text>
+                <Text style={styles.ticketCount}>🎟️ Tickets: {group.images.length}</Text>
+              </View>
+
+              {/* Horizontal Scroll View for Thumbnails */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.thumbnailScrollContainer}
+              >
+                {group.images.map((img) => (
+                  <TouchableOpacity
+                    key={img.id}
+                    style={styles.thumbnailWrapper}
+                    onPress={() => {
+                      console.log('Opening image uri:', `${API_BASE_URL}${img.image_url}`);
+                      setFullImageUri(`${API_BASE_URL}${img.image_url}`);
+                    }}
+                  >
+                    <Image
+                      source={{ uri: `${API_BASE_URL}${img.image_url}` }}
+                      style={styles.thumbnailImage}
+                      resizeMode="contain"
+                    />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Submit button */}
+              <View style={{ marginVertical: 8, paddingHorizontal: 10 }}>
+                <Button
+                  title={group.submitted ? "Submitted" : "Submit"}
+                  disabled={group.submitted}
+                  onPress={() => handleSubmit(group.date, group.images.map(img => img.id))}
+                />
+              </View>
+            </View>
+          ))
+        )}
+      </ScrollView>
+
+      {/* Full-screen image modal */}
+      {fullImageUri && (
+        <View style={styles.fullImageContainer}>
+          <Image source={{ uri: fullImageUri }} style={styles.fullImage} />
+          <TouchableOpacity style={styles.closeButton} onPress={() => setFullImageUri(null)}>
+            <Text style={{ color: '#fff' }}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </SafeAreaView>
+  );
+}
+
 
   return (
     <SafeAreaView style={styles.container}>
@@ -734,6 +744,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 5,
   },
+  topBar: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginBottom: 10,
+  paddingHorizontal: 10,
+},
+
+backButton: {
+  position: 'absolute',
+  left: 10,
+  padding: 5,
+  zIndex: 1,
+},
+
+backArrow: {
+  fontSize: 26,
+  color: '#007bff',
+  fontWeight: 'bold',
+},
+
   buttonText: { color: '#fff', fontSize: 18, fontWeight: 'bold' },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 20, textAlign: 'center' },
   previewImage: { width: '100%', height: 300, resizeMode: 'contain', borderRadius: 10, marginBottom: 20 },
@@ -746,6 +777,19 @@ const styles = StyleSheet.create({
     width: '90%',
     alignSelf: 'center',
   },
+  dateHeaderRow: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  paddingHorizontal: 10,
+  marginBottom: 5,
+},
+ticketCount: {
+  fontSize: 16,
+  fontWeight: '500',
+  color: '#555',
+},
+
   fullImageContainer: {
     position: 'absolute',
     top: 0,

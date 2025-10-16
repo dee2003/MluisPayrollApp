@@ -260,6 +260,7 @@ class DailySubmissionBase(BaseModel):
     status: SubmissionStatus
 class DailySubmission(DailySubmissionBase):
     id: int
+    
     # Denormalized read-only fields for the supervisor dashboard
     foreman_name: str
     job_name: Optional[str] = None  # optional convenience if you resolve job name server-side

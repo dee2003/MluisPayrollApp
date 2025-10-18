@@ -45,10 +45,14 @@ class Ticket(Base):
     image_path = Column(String, nullable=True)  # Path to the saved image file
     #owner_id = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, default=func.now())
-
+    
     #owner = relationship("User", back_populates="tickets")
     foreman_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-
+    # date = Column(Date, nullable=False)
+    sent = Column(Boolean, default=False) 
+    reviewed_by_supervisor = Column(Boolean, default=False)
+    status = Column(String, default="pending") 
+    phase_code = Column(String, nullable=True)
     # Relationships
     foreman = relationship("User", back_populates="tickets")
     job_phase_id = Column(Integer, ForeignKey("job_phases.id"), nullable=True)
@@ -72,7 +76,10 @@ class Equipment(Base):
     name = Column(String)
     type = Column(String)
     status = Column(String, default="Active")
-
+    department = Column(String)
+    # These are not defined as database columns
+    category_number = Column(String, nullable=True)
+    vin_number = Column(String, nullable=True)
 
 # models.py (SQLAlchemy Model for PostgreSQL)
 class JobPhase(Base):
@@ -132,6 +139,8 @@ class Timesheet(Base):
     sent = Column(Boolean, default=False)
     status = Column(String, default="pending")
     submission_id = Column(Integer, ForeignKey("daily_submissions.id"), nullable=True)
+    reviewed_by_supervisor = Column(Boolean, default=False)
+    sent_date = Column(DateTime, nullable=True)  # NEW
 
     # Relationships
     foreman = relationship("User", back_populates="timesheets")
@@ -176,24 +185,25 @@ class DailySubmission(Base):
     id = Column(Integer, primary_key=True, index=True)
     date = Column(Date, nullable=False, index=True)
     foreman_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    supervisor_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+
+    # supervisor_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     # job_phase_id = Column(Integer, ForeignKey("job_phases.id"), nullable=False)
 
-    # Optional job linkage: use job_code or job_id if you have a jobs table
-    # If you don't have a jobs table, prefer job_code as string
+    # job_phase_id = Column(Integer, ForeignKey("job_phases.id"), nullable=True)  # <- Add this
     job_code = Column(String, nullable=True)
 
+
+    # total_hours = Column(Float, default=0.0)
     ticket_count = Column(Integer, default=0)
     status = Column(SQLAlchemyEnum(SubmissionStatus), default=SubmissionStatus.PENDING_REVIEW, nullable=False)
 
     # Relationships
-    foreman = relationship("User")
+    foreman = relationship("User", foreign_keys=[foreman_id])
+    supervisor = relationship("User", foreign_keys=[supervisor_id])
     # job_phase = relationship("JobPhase")
     timesheets = relationship("Timesheet", back_populates="submission")
 
-
-
-    
-    
 
 
 
@@ -236,3 +246,4 @@ class ForemanJob(Base):
 #     foreman = relationship("User")
 #     job_phase = relationship("JobPhase")
 #     timesheets = relationship("Timesheet", back_populates="submission")
+   

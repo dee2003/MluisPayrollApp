@@ -31,7 +31,6 @@ def create_timesheet(timesheet: schemas.TimesheetCreate, db: Session = Depends(g
         or data_to_store.get("job", {}).get("job_code")
         or "Untitled Timesheet"
     )
-
     db_timesheet = models.Timesheet(
         foreman_id=timesheet.foreman_id,
         date=timesheet.date,
@@ -90,8 +89,12 @@ def get_timesheets_for_supervisor(
             query = query.filter(cast(models.Timesheet.date, Date) == target_date)
         except ValueError:
             raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+
     timesheets = query.order_by(models.Timesheet.sent_date.desc()).all()  # optional: latest sent first
     return timesheets
+
+
+
 
 
 
@@ -238,6 +241,8 @@ def update_timesheet(timesheet_id: int, timesheet_update: schemas.TimesheetUpdat
 # -------------------------------
 # SEND a timesheet
 # -------------------------------
+from datetime import datetime
+
 @router.post("/{timesheet_id}/send", response_model=schemas.Timesheet)
 def send_timesheet(timesheet_id: int, db: Session = Depends(get_db)):
     ts = db.query(models.Timesheet).filter(models.Timesheet.id == timesheet_id).first()
@@ -245,20 +250,22 @@ def send_timesheet(timesheet_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Timesheet not found")
 
     ts.sent = True
+    ts.sent_date = datetime.utcnow()  # mark the foreman send time
     ts.status = "sent"
 
-    # Optional workflow entry
+    # Add workflow entry
     workflow = models.TimesheetWorkflow(
         timesheet_id=ts.id,
         foreman_id=ts.foreman_id,
         supervisor_id=None,
         action="sent",
-        timestamp=datetime.utcnow(),
+        timestamp=datetime.utcnow()
     )
     db.add(workflow)
     db.commit()
     db.refresh(ts)
     return ts
+
 
 
 # -------------------------------
@@ -272,12 +279,30 @@ def delete_timesheet(timesheet_id: int, db: Session = Depends(get_db)):
     db.delete(ts)
     db.commit()
     return
-@router.get("/", response_model=List[schemas.Timesheet])
+# In your routers/timesheet.py
+
+@router.get("/", response_model=List[schemas.TimesheetResponse])
 def list_timesheets(db: Session = Depends(get_db)):
-    timesheets = (
-        db.query(models.Timesheet)
-        .options(joinedload(models.Timesheet.files))
-        .all()
-    )
-    return timesheets
-                                                                       
+    """
+    Returns a list of all timesheets with foreman names and job names included.
+    This is optimized for the admin dashboard view.
+    """
+    timesheets = db.query(models.Timesheet).options(joinedload(models.Timesheet.foreman)).all()
+    
+    response = []
+    for ts in timesheets:
+        foreman_name = f"{ts.foreman.first_name} {ts.foreman.last_name}" if ts.foreman else "N/A"
+        
+        # Create the response object, ensuring all required fields are present
+        response.append(schemas.TimesheetResponse(
+            id=ts.id,
+            date=ts.date,
+            foreman_id=ts.foreman_id,
+            foreman_name=foreman_name,
+            job_name=ts.timesheet_name,  # <-- The FIX: Populate the required 'job_name' field
+            data=ts.data,
+            sent=ts.sent,
+            status=ts.status
+        ))
+        
+    return response

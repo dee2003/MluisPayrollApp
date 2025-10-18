@@ -420,9 +420,21 @@ def list_images_by_date(foreman_id: int, db: Session = Depends(database.get_db))
             "id": t.id,
             "image_url": t.image_path
         })
+    images_by_date = []
+    for date, imgs in grouped.items():
+        submission = db.query(models.DailySubmission).filter_by(
+            foreman_id=foreman_id,
+            date=date
+        ).first()
 
-    return {"imagesByDate": [{"date": date, "images": imgs} for date, imgs in grouped.items()]}
-
+        images_by_date.append({
+            "date": date,
+            "images": imgs,
+            "status": submission.status if submission else None,  # e.g., "PENDING_REVIEW", "APPROVED", etc.
+            "submission_id": submission.id if submission else None,
+            "ticket_count": len(imgs)
+        })
+    return {"imagesByDate": images_by_date}
 
 @router.get("/")
 async def root():

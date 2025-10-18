@@ -58,13 +58,20 @@ class EquipmentBase(BaseModel):
     name: str
     type: str
     status: str
+    department: Optional[str] = None
+    category_number: Optional[str] = None
+    vin_number: Optional[str] = None
 
 class EquipmentCreate(EquipmentBase): 
     pass
 
 class Equipment(EquipmentBase):
     model_config = model_config
-
+class EquipmentUpdate(EquipmentBase):
+    pass
+class EquipmentInDB(EquipmentBase):
+    class Config:
+        orm_mode = True
 # ===============================
 #         MATERIALS
 # ===============================
@@ -194,6 +201,8 @@ class TimesheetCreate(TimesheetBase):
     status: str = "Pending"
     job_phase_id: Optional[int] = None
 
+
+
 class TimesheetUpdate(BaseModel):
     data: Optional[Dict[str, Any]] = None
     status: Optional[str] = None
@@ -277,3 +286,79 @@ class DailySubmissionCreate(BaseModel):
 # For supervisor requesting changes
 class RequestChanges(BaseModel):
     note: str
+# C:\admin_webpage\backend\schemas.py
+
+# ... (keep all your existing imports and schemas)
+from datetime import date
+from typing import List, Optional
+
+# ===============================
+#     	SUPERVISOR REVIEW
+# ===============================
+
+class Notification(BaseModel):
+    """Data for each foreman card on the supervisor dashboard."""
+    id: int
+    foreman_id: int
+    foreman_name: str
+    foreman_email: str
+    date: date
+    ticket_count: int
+    timesheet_count: int
+    job_code: Optional[str] = None
+
+class UnreviewedItem(BaseModel):
+    """Details of items blocking submission."""
+    foreman_name: str
+    count: int
+
+class ValidationResponse(BaseModel):
+    """Response for the pre-submission status check."""
+    can_submit: bool
+    unreviewed_timesheets: List[UnreviewedItem] = []
+    incomplete_tickets: List[UnreviewedItem] = []
+
+# class TicketSummary(BaseModel):
+#     """Schema for listing tickets."""
+#     id: int
+#     ticket_number: Optional[str] = None
+#     job_name: Optional[str] = None
+
+#     class Config:
+#         from_attributes = True
+class TicketSummary(BaseModel):
+    id: int
+    image_path: str | None = None
+    job_code: Optional[str] = None
+    phase_code: str | None = None
+    
+
+    class Config:
+        from_attributes = True
+
+
+class TimesheetSummary(BaseModel):
+    id: int
+    foreman_id: int
+    date: str
+    
+
+    class Config:
+        orm_mode = True
+
+class SubmissionDataResponse(BaseModel):
+    tickets: List[TicketSummary]
+    timesheets: List[TimesheetSummary]
+
+
+from datetime import date
+from typing import Optional
+
+class PENotification(BaseModel):
+    id: int
+    supervisor_id: int
+    supervisor_name: str
+    date: date
+    job_code: Optional[str]
+    timesheet_count: int
+    ticket_count: int

@@ -9,7 +9,9 @@ import logging
 import sys
 from .routers.equipment import router as equipment_router
 from fastapi.staticfiles import StaticFiles
-
+from .routers import timesheet
+from .routers import tickets
+from .routers import review
 # Create all database tables if they don't exist
 models.Base.metadata.create_all(bind=database.engine)
 app = FastAPI()
@@ -262,3 +264,16 @@ def login(credentials: schemas.LoginRequest, db: Session = Depends(database.get_
 
 app.include_router(auth_router)
 
+
+from .ocr import ocr_main
+app.include_router(ocr_main.router)
+from fastapi.staticfiles import StaticFiles
+import os
+
+app.include_router(review.router)
+
+from .routers import tickets
+app.include_router(tickets.router)
+from backend.routers import project_engineer
+
+app.include_router(project_engineer.router)

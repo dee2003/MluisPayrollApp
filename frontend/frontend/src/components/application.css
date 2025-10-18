@@ -57,14 +57,14 @@ body {
 }
 
 .btn-primary {
-    background-color: #4f46e5;
+    background-color: #008fa0;
     color: #fff;
     border: none;
     box-shadow: 0 4px 6px rgba(79, 70, 229, 0.3);
 }
 
 .btn-primary:hover {
-    background-color: #4338ca;
+    background-color: #026772;
     transform: translateY(-1px);
 }
 
@@ -404,4 +404,92 @@ body {
     overflow-y: auto; /* Make it scrollable when content overflows */
     padding: 10px 40px 30px 40px; /* Add padding here instead of the parent */
     box-sizing: border-box;
+}
+/* ... (Existing global, admin-page-container, admin-header, btn-primary, btn-secondary styles) ... */
+
+/* --- NEW: View Toggle Control Container and Button --- */
+
+.timesheet-controls {
+    display: flex;
+    justify-content: flex-end; /* Aligns the button to the right */
+    margin-bottom: 25px; /* Adds spacing between the button and the timesheet list/grid */
+    padding-right: 5px;
+}
+
+.btn-toggle {
+    /* Base button styles */
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 15px;
+    font-size: 14px;
+    font-weight: 500;
+    
+    /* Custom utility look */
+    background-color: #fff;
+    border: 1px solid #dce0ff; /* Light indigo border */
+    color: #4f46e5;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.btn-toggle:hover {
+    background-color: #f4f6ff;
+    border-color: #4f46e5;
+    /* Disable lift/shadow effects for a utility button */
+    transform: none; 
+    box-shadow: none;
+}
+
+/* --- Timesheet Card Grid (Section-wise/Grid View) --- */
+
+.timesheet-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 30px;
+}
+
+/* --- Timesheet List (List-wise View) --- */
+
+.timesheet-list {
+    /* Overrides grid layout with a simple vertical stack */
+    display: flex; 
+    flex-direction: column;
+    gap: 15px; 
+}
+
+/* Adjust card in list view */
+.timesheet-list .timesheet-card {
+    width: 100%; /* Ensure it takes full width in the list container */
+    padding: 15px 20px;
+}
+
+/* Visual cue for the currently expanded card */
+.timesheet-card.expanded {
+    border: 1px solid #4f46e5;
+    background-color: #fafbff;
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.2);
+}
+
+/* ... (All other existing styles like timesheet-card, card-header, etc. remain below) ... */
+/* Add these styles to your existing CSS file */
+
+/* Container for temperature input and unit select */
+.input-with-unit {
+    display: flex;
+    gap: 5px; /* Adjust spacing between input and select */
+}
+
+/* Ensure the temperature input takes most of the space */
+.input-with-unit .form-input {
+    flex-grow: 1; 
+    min-width: 0; /* Allows it to shrink if necessary */
+}
+
+/* Style for the unit selector to be compact */
+.input-with-unit .unit-select {
+    width: 60px; /* Fixed width for the dropdown */
+    flex-shrink: 0;
+    padding-left: 5px;
+    padding-right: 5px;
+    text-align: center;
 }

@@ -36,10 +36,9 @@ from ultralytics import YOLO
 YOLO_MODEL_PATH = os.path.join(os.path.dirname(__file__), "best.pt")
 
 # --- File Storage Setup ---
-TICKETS_DIR = r"D:\git\mluis_app\backend\tickets"
-TEMP_LINES_DIR = r"D:\git\mluis_app\backend\temp_lines"
-DEBUG_DIR = r"D:\git\mluis_app\backend\debug_output"
-os.makedirs(TICKETS_DIR, exist_ok=True)
+TICKETS_DIR = r"C:\Mluis_App\mluis_app\backend\tickets"
+TEMP_LINES_DIR = r"C:\Mluis_App\mluis_app\backend\temp_lines"
+DEBUG_DIR = r"C:\Mluis_App\mluis_app\backend\debug_output"
 os.makedirs(TEMP_LINES_DIR, exist_ok=True)
 os.makedirs(DEBUG_DIR, exist_ok=True)
 
@@ -406,35 +405,97 @@ from collections import defaultdict
 #     return {"imagesByDate": images_by_date}
 
 
+# @router.get("/images-by-date/{foreman_id}")
+# def list_images_by_date(foreman_id: int, db: Session = Depends(database.get_db)):
+#     from datetime import datetime
+#     from collections import defaultdict
+
+#     tickets = db.query(models.Ticket).filter(models.Ticket.foreman_id == foreman_id).all()
+#     grouped = defaultdict(list)
+
+#     for t in tickets:
+#         date_str = t.created_at.strftime("%Y-%m-%d") if t.created_at else datetime.today().strftime("%Y-%m-%d")
+#         grouped[date_str].append({
+#             "id": t.id,
+#             "image_url": t.image_path
+#         })
+#     images_by_date = []
+#     for date, imgs in grouped.items():
+#         submission = db.query(models.DailySubmission).filter_by(
+#             foreman_id=foreman_id,
+#             date=date
+#         ).first()
+
+#         images_by_date.append({
+#             "date": date,
+#             "images": imgs,
+#             "status": submission.status if submission else None,  # e.g., "PENDING_REVIEW", "APPROVED", etc.
+#             "submission_id": submission.id if submission else None,
+#             "ticket_count": len(imgs)
+#         })
+#     return {"imagesByDate": images_by_date}
+
+# @router.get("/")
+# async def root():
+#     return {"message": "OCR API is running successfully!"}
+
+
+
+
+
 @router.get("/images-by-date/{foreman_id}")
 def list_images_by_date(foreman_id: int, db: Session = Depends(database.get_db)):
-    from datetime import datetime
-    from collections import defaultdict
+    # 1. Fetch all tickets for this foreman
+    all_tickets = (
+        db.query(models.Ticket)
+        .filter(models.Ticket.foreman_id == foreman_id)
+        .all()
+    )
 
-    tickets = db.query(models.Ticket).filter(models.Ticket.foreman_id == foreman_id).all()
-    grouped = defaultdict(list)
+    # 2. Get all submissions for this foreman
+    all_submissions = (
+        db.query(models.DailySubmission)
+        .filter(models.DailySubmission.foreman_id == foreman_id)
+        .all()
+    )
 
-    for t in tickets:
-        date_str = t.created_at.strftime("%Y-%m-%d") if t.created_at else datetime.today().strftime("%Y-%m-%d")
-        grouped[date_str].append({
+    # 3. Collect all submitted ticket IDs via timesheets
+    submitted_ticket_ids = set()
+    for sub in all_submissions:
+        if sub.timesheets:
+            for ts in sub.timesheets:
+                if ts.ticket_id:
+                    submitted_ticket_ids.add(ts.ticket_id)
+
+    # 4. Group tickets by date and mark submitted ones
+    grouped_tickets = defaultdict(list)
+    for t in all_tickets:
+        date_str = t.created_at.strftime("%Y-%m-%d")
+
+        grouped_tickets[date_str].append({
             "id": t.id,
-            "image_url": t.image_path
+            "image_url": t.image_path,
+            "submitted": t.id in submitted_ticket_ids
         })
+
+    # 5. Build final response
     images_by_date = []
-    for date, imgs in grouped.items():
-        submission = db.query(models.DailySubmission).filter_by(
-            foreman_id=foreman_id,
-            date=date
-        ).first()
+    for date, imgs in grouped_tickets.items():
+        submission_for_date = next(
+            (s for s in all_submissions if s.date.strftime("%Y-%m-%d") == date),
+            None
+        )
 
         images_by_date.append({
             "date": date,
             "images": imgs,
-            "status": submission.status if submission else None,  # e.g., "PENDING_REVIEW", "APPROVED", etc.
-            "submission_id": submission.id if submission else None,
-            "ticket_count": len(imgs)
+            "status": submission_for_date.status if submission_for_date else None,
+            "submission_id": submission_for_date.id if submission_for_date else None,
+            "ticket_count": len(imgs),
         })
+
     return {"imagesByDate": images_by_date}
+
 
 @router.get("/")
 async def root():

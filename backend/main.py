@@ -222,7 +222,7 @@ from .ocr import ocr_main
 app.include_router(ocr_main.router)
 from fastapi.staticfiles import StaticFiles
 import os
-TICKETS_DIR = r"D:\git\mluis_app\backend\tickets"
+TICKETS_DIR = r"C:\Mluis_App\mluis_app\backend\tickets"
 app.mount("/media/tickets", StaticFiles(directory=os.path.abspath(TICKETS_DIR)), name="tickets")
 app.include_router(job_phase_router)
 app.include_router(crew_mapping_router)
@@ -275,5 +275,4 @@ app.include_router(review.router)
 from .routers import tickets
 app.include_router(tickets.router)
 from backend.routers import project_engineer
-
 app.include_router(project_engineer.router)

@@ -246,4 +246,17 @@ class ForemanJob(Base):
 #     foreman = relationship("User")
 #     job_phase = relationship("JobPhase")
 #     timesheets = relationship("Timesheet", back_populates="submission")
-   
+from typing import List, Optional
+from pydantic import BaseModel
+
+class DailySubmissionDetails(BaseModel):
+    """Defines the data for a single foreman's submission on a given day."""
+    foreman_id: int
+    foreman_name: str
+    job_code: Optional[str] = None
+    timesheet_count: int
+    ticket_count: int
+class ProjectEngineerSubmission(BaseModel):
+    """Groups all foreman submissions under a single date."""
+    date: str
+    submissions: List[DailySubmissionDetails]

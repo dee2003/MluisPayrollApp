@@ -362,3 +362,13 @@ class PENotification(BaseModel):
     job_code: Optional[str]
     timesheet_count: int
     ticket_count: int
+from datetime import date
+from typing import Optional
+class PENotification(BaseModel):
+    id: int
+    supervisor_id: int
+    supervisor_name: str
+    date: date
+    job_code: Optional[str]
+    timesheet_count: int
+    ticket_count: int

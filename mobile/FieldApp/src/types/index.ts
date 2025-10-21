@@ -1,162 +1,83 @@
-// export interface User {
-//   id: number;
-//   username: string;
-//   role: 'foreman' | 'supervisor' | 'project_engineer' | 'admin';
-//   token: string;
-//   first_name: string; // Add this line
-//   last_name: string;  // Add this line
-// }
+// /src/types/index.ts
 
-// export type EmployeeWorkLog = {
-//   id: string;
-//   first_name: string;
-//   middle_name?: string;
-//   last_name: string;
-//   hours_per_phase?: Record<string, number>;
-//   class_1?: string;   // Add this
-//   class_2?: string;   // Add this
-//   selected_class?: string; // Add this for dropdown selection
-// };
-
-
-// export interface EquipmentWorkLog {
-//   id: string; // Equipment ID
-//   name: string;
-//   hours_per_phase?: Record<string, number>;
-// }
-
-// // New interfaces for materials and vendors
-// export interface MaterialWorkLog {
-//   id: string; // Material ID
-//   name: string;
-//   hours_per_phase?: Record<string, number>;
-// }
-
-// export interface VendorWorkLog {
-//   id: string; // Vendor ID
-//   name: string;
-//   hours_per_phase?: Record<string, number>;
-// }
-
-// interface JobData {
-//   job_code: string;
-//   phase_codes: string[];
-// }
-
-// interface TimesheetData {
-//   job_name: string;
-//   job: JobData;
-//   project_engineer: string;
-//   location: string;
-//   time_of_day?: string;
-//   weather?: string;
-//   temperature?: string;
-//   shift?: string;
-// day?:string;
-//   employees: EmployeeWorkLog[];
-//   equipment: EquipmentWorkLog[];
-//   materials: MaterialWorkLog[];
-//   vendors: VendorWorkLog[];
-//     notes?: string; 
-
-// }
-
-// export interface Timesheet {
-//   id: number;
-//   foreman_id: number;
-//   foreman_name: string;
-//   date: string;
-//   data: TimesheetData;
-//   status: 'Pending' | 'Submitted' | 'Approved' | 'Rejected'; 
-// }
-// // types.ts
-// export type SubmissionStatus = 'PENDING_REVIEW' | 'APPROVED' | 'CHANGES_REQUESTED';
-
-// export interface DailySubmissionSummary {
-//   submissionId: string;        // created by backend on submit
-//   date: string;                // 'YYYY-MM-DD'
-//   foremanId: string;
-//   foremanName: string;
-//   jobName: string;
-//   totalHours: number;
-//   ticketCount: number;
-//   status: SubmissionStatus;
-// }
-// // /src/types/index.ts
-
+export type TimesheetStatus = 'Pending' | 'Submitted' | 'Approved' | 'Rejected' | 'draft' | 'sent';
 
 export interface User {
   id: number;
   username: string;
   role: 'foreman' | 'supervisor' | 'project_engineer' | 'admin';
-  first_name: string; // Add this line
-  last_name: string;  // Add this line
+  first_name: string;
+  last_name: string;
+  middle_name:string;
 }
+
 export type EmployeeWorkLog = {
   id: string;
   first_name: string;
   middle_name?: string;
   last_name: string;
   hours_per_phase?: Record<string, number>;
-  class_1?: string;   // Add this
-  class_2?: string;   // Add this
-  selected_class?: string; // Add this for dropdown selection
+  class_1?: string;
+  class_2?: string;
+  selected_class?: string;
+    class_codes?: string[]; // <-- add this
+
 };
+
 export interface EquipmentWorkLog {
-  id: string; // Equipment ID
+  id: string;
   name: string;
-  hours_per_phase?: Record<string, number>;
+  hours_per_phase?: Record<string, { REG?: number; S_B?: number }>;
 }
-// New interfaces for materials and vendors
+
 export interface MaterialWorkLog {
-  id: string; // Material ID
+  id: string;
   name: string;
   hours_per_phase?: Record<string, number>;
+    unit?: string; // <-- ADD THIS
+
 }
+
 export interface VendorWorkLog {
-  id: string; // Vendor ID
+  id: string;
   name: string;
   hours_per_phase?: Record<string, number>;
+    unit?: string; // <-- ADD THIS
+
 }
-interface JobData {
+
+export interface Job {
+  id: number;
   job_code: string;
-  phase_codes: string[];
+  job_description: string;
+  phase_codes: any[];
 }
-interface TimesheetData {
+
+export interface TimesheetData {
+  job: Job;
   job_name: string;
-  job: JobData;
   project_engineer: string;
   location: string;
   time_of_day?: string;
   weather?: string;
   temperature?: string;
   shift?: string;
-day?:string;
+  day?: string;
   employees: EmployeeWorkLog[];
   equipment: EquipmentWorkLog[];
   materials: MaterialWorkLog[];
   vendors: VendorWorkLog[];
-    notes?: string;
-    total_quantities_per_phase?: Record<string, string | number>;
+  notes?: string;
+  total_quantities_per_phase?: Record<string, string | number>;
 }
+
 export interface Timesheet {
   id: number;
   foreman_id: number;
-  foreman_name: string;
   date: string;
+  timesheet_name: string; // Keep for backend compatibility
   data: TimesheetData;
-  status: 'Pending' | 'Submitted' | 'Approved' | 'Rejected';
+  sent: boolean;
+  status: TimesheetStatus;
+  job_phase_id: number | null;
 }
-// types.ts
-export type SubmissionStatus = 'PENDING_REVIEW' | 'APPROVED' | 'CHANGES_REQUESTED';
-export interface DailySubmissionSummary {
-  submissionId: string;        // created by backend on submit
-  date: string;                // 'YYYY-MM-DD'
-  foremanId: string;
-  foremanName: string;
-  jobName: string;
-  totalHours: number;
-  ticketCount: number;
-  status: SubmissionStatus;
-}
-// /src/types/index.ts

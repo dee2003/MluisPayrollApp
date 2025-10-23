@@ -403,8 +403,10 @@ export default function ApplicationAdminPage() {
                                                 <div className="crew-details-box">
                                                     <p><strong>Employees:</strong> {mapping.employees?.map(e => `${e.first_name} ${e.last_name}`).join(", ") || "N/A"}</p>
                                                     <p><strong>Equipment:</strong> {mapping.equipment?.map(eq => eq.name).join(", ") || "N/A"}</p>
-                                                    <p><strong>Materials:</strong> {mapping.materials?.map(mat => mat.name).join(", ") || "N/A"}</p>
-                                                    <p><strong>Vendors:</strong> {mapping.vendors?.map(ven => ven.name).join(", ") || "N/A"}</p>
+                                                    <p><strong>Materials and Trucking:</strong> {mapping.materials?.map(mat => mat.name).join(", ") || "N/A"}</p>
+                                                    <p><strong>Work Performed:</strong> {mapping.vendors?.map(ven => ven.name).join(", ") || "N/A"}</p>
+                                                    <p><strong>Dumping Sites:</strong> {mapping.dumping_sites?.map(site => site.name).join(", ") || "N/A"}</p>
+
                                                 </div>
                                             )}
                                         </>

@@ -1,8 +1,1619 @@
+// // import React, { useState, useEffect } from 'react';
+// // import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, SafeAreaView, Alert } from 'react-native';
+// // import { RouteProp } from '@react-navigation/native';
+// // import { StackNavigationProp } from '@react-navigation/stack';
+// // import DatePicker from 'react-native-date-picker';
+// // import apiClient from '../../api/apiClient';
+// // import { Timesheet } from '../../types';
+// // import { ForemanStackParamList } from '../../navigation/AppNavigator';
+// // import { Dropdown } from 'react-native-element-dropdown';
+
+// // // --- Theme Constants ---
+// // const THEME = {
+// //   primary: '#007AFF',
+// //   success: '#34C759',
+// //   danger: '#FF3B30',
+// //   background: '#F0F0F7',
+// //   card: '#FFFFFF',
+// //   text: '#1C1C1E',
+// //   textSecondary: '#6A6A6A',
+// //   border: '#E0E0E5',
+// //   lightGray: '#F8F8F8',
+// //   SPACING: 16,
+// // };
+
+// // // --- Type Definitions ---
+// // type ComplexHourState = { [key: string]: { [key: string]: { REG?: string; S_B?: string } } };
+// // type EmployeeHourState = { [key: string]: { [key: string]: { [classCode: string]: string } } };
+// // type SimpleHourState = { [key: string]: { [key: string]: string } };
+// // type QuantityState = { [key: string]: string };
+// // type PhaseTotalState = { [key: string]: number };
+// // type EditScreenRouteProp = RouteProp<ForemanStackParamList, 'TimesheetEdit'>;
+// // type EditScreenNavigationProp = StackNavigationProp<ForemanStackParamList, 'TimesheetEdit'>;
+// // type Props = { route: EditScreenRouteProp; navigation: EditScreenNavigationProp; };
+
+// // const TimesheetEditScreen = ({ route, navigation }: Props) => {
+// //   const { timesheetId } = route.params;
+
+// //   const [timesheet, setTimesheet] = useState<Timesheet | null>(null);
+// //   const [foremanName, setForemanName] = useState('');
+// //   const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
+// //   const [timesheetDate, setTimesheetDate] = useState(new Date());
+// //   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+// //   const [notes, setNotes] = useState('');
+// //   const [jobTitle, setJobTitle] = useState('Timesheet'); // <-- Fixed title
+
+// //   const [employeeHours, setEmployeeHours] = useState<EmployeeHourState>({});
+// //   const [equipmentHours, setEquipmentHours] = useState<ComplexHourState>({});
+// //   const [materialHours, setMaterialHours] = useState<SimpleHourState>({});
+// //   const [vendorHours, setVendorHours] = useState<SimpleHourState>({});
+// //   const [materialTickets, setMaterialTickets] = useState<SimpleHourState>({});
+// //   const [vendorTickets, setVendorTickets] = useState<SimpleHourState>({});
+// //   const [totalQuantities, setTotalQuantities] = useState<QuantityState>({});
+// //   const [availableEquipment, setAvailableEquipment] = useState<any[]>([]);
+
+// //   const [loading, setLoading] = useState(true);
+// //   const [isSubmitting, setIsSubmitting] = useState(false);
+
+// //   useEffect(() => {
+// //     const fetchData = async () => {
+// //       try {
+// //         const response = await apiClient.get(`/api/timesheets/${timesheetId}`);
+// //         const tsData: Timesheet = response.data;
+// //         setTimesheet(tsData);
+// //         setTimesheetDate(new Date(tsData.date));
+// //         setNotes(tsData.data.notes || '');
+// //   const jobName = tsData.data.job?.job_description || tsData.data.job_name || 'Timesheet';
+// //         setJobTitle(jobName);
+// //         navigation.setOptions({ title: `${jobName} - Edit` });
+// //         if (tsData.data.job.phase_codes?.length > 0) {
+// //           setSelectedPhase(tsData.data.job.phase_codes[0]);
+// //         }
+        
+// //         const populateSimple = (entities: any[], field: 'hours_per_phase' | 'tickets_per_phase'): SimpleHourState => {
+// //             const state: SimpleHourState = {};
+// //             entities.forEach(e => {
+// //                 state[e.id] = {};
+// //                 if (e[field]) {
+// //                     for (const phase in e[field]) {
+// //                         state[e.id][phase] = e[field][phase]?.toString() || '';
+// //                     }
+// //                 }
+// //             });
+// //             return state;
+// //         };
+
+// //         const populateEmployees = (entities: any[]): EmployeeHourState => {
+// //           const state: EmployeeHourState = {};
+// //           entities.forEach(e => {
+// //               state[e.id] = {};
+// //               if (e.hours_per_phase) {
+// //                   for (const phase in e.hours_per_phase) {
+// //                       state[e.id][phase] = {};
+// //                       const v = e.hours_per_phase[phase];
+// //                       if (v && typeof v === 'object') {
+// //                           // Handles data like { "ClassA": 8, "ClassB": 2 }
+// //                           for (const classCode in v) {
+// //                               state[e.id][phase][classCode] = (v[classCode] ?? '').toString();
+// //                           }
+// //                       }
+// //                   }
+// //               }
+// //           });
+// //           return state;
+// //         };
+        
+// //         const populateEquipmentComplex = (entities: any[]): ComplexHourState => {
+// //             const state: ComplexHourState = {};
+// //             entities.forEach(e => {
+// //                 state[e.id] = {};
+// //                 if (e.hours_per_phase) {
+// //                     for (const phase in e.hours_per_phase) {
+// //                         const v = e.hours_per_phase[phase];
+// //                         if (v && typeof v === 'object') {
+// //                             state[e.id][phase] = { REG: v.REG?.toString() || '', S_B: v.S_B?.toString() || '' };
+// //                         } else {
+// //                             const num = parseFloat(v ?? 0);
+// //                             state[e.id][phase] = { REG: !isNaN(num) ? num.toString() : '', S_B: '' };
+// //                         }
+// //                     }
+// //                 }
+// //             });
+// //             return state;
+// //         };
+        
+// //         setEmployeeHours(populateEmployees(tsData.data.employees));
+// //         setEquipmentHours(populateEquipmentComplex(tsData.data.equipment));
+// //         setMaterialHours(populateSimple(tsData.data.materials, 'hours_per_phase'));
+// //         setVendorHours(populateSimple(tsData.data.vendors, 'hours_per_phase'));
+// //         setMaterialTickets(populateSimple(tsData.data.materials, 'tickets_per_phase'));
+// //         setVendorTickets(populateSimple(tsData.data.vendors, 'tickets_per_phase'));
+
+// //         if (tsData.data.total_quantities_per_phase) {
+// //           const q: QuantityState = {};
+// //           for (const phase in tsData.data.total_quantities_per_phase) {
+// //             q[phase] = String(tsData.data.total_quantities_per_phase[phase]);
+// //           }
+// //           setTotalQuantities(q);
+// //         }
+
+// //         const eqRes = await apiClient.get('/api/equipment');
+// //         setAvailableEquipment(eqRes.data);
+
+// //         const res = await apiClient.get(`/api/users/${tsData.foreman_id}`);
+// //         setForemanName(`${res.data.first_name} ${res.data.middle_name || ''} ${res.data.last_name}`.trim());
+
+// //       } catch (err) {
+// //         console.error(err);
+// //         Alert.alert('Error', 'Failed to load timesheet data.');
+// //       } finally {
+// //         setLoading(false);
+// //       }
+// //     };
+// //     fetchData();
+// //   }, [timesheetId, navigation]);
+
+// //   const handleEmployeeHourChange = (employeeId: string, phaseCode: string, classCode: string, value: string) => {
+// //     const sanitized = value.replace(/[^0-9.]/g, '');
+// //     setEmployeeHours(prev => ({
+// //       ...prev,
+// //       [employeeId]: {
+// //         ...prev[employeeId],
+// //         [phaseCode]: {
+// //           ...prev[employeeId]?.[phaseCode],
+// //           [classCode]: sanitized,
+// //         },
+// //       },
+// //     }));
+// //   };
+
+// //   const handleComplexHourChange = (
+// //     setter: React.Dispatch<React.SetStateAction<ComplexHourState>>,
+// //     entityId: string,
+// //     phaseCode: string,
+// //     hourType: 'REG' | 'S_B',
+// //     value: string
+// //   ) => {
+// //     const sanitized = value.replace(/[^0-9.]/g, '');
+// //     setter(prev => ({
+// //       ...prev,
+// //       [entityId]: {
+// //         ...prev[entityId],
+// //         [phaseCode]: { ...prev[entityId]?.[phaseCode], [hourType]: sanitized },
+// //       },
+// //     }));
+// //   };
+
+// //   const handleSimpleValueChange = (
+// //     type: 'material' | 'vendor',
+// //     field: 'hours' | 'tickets',
+// //     entityId: string,
+// //     phaseCode: string,
+// //     value: string
+// //   ) => {
+// //     const setters = {
+// //       material: { hours: setMaterialHours, tickets: setMaterialTickets },
+// //       vendor: { hours: setVendorHours, tickets: setVendorTickets },
+// //     };
+// //     const sanitize = (val: string, fieldType: 'hours' | 'tickets') => {
+// //         // For vendor quantities, allow decimals. For material hours, allow decimals. For tickets, only integers.
+// //         if (type === 'vendor' && field === 'hours') return val.replace(/[^0-9.]/g, ''); // Vendor quantity can be decimal
+// //         return fieldType === 'hours' ? val.replace(/[^0-9.]/g, '') : val.replace(/[^0-9]/g, '');
+// //     }
+// //     const sanitized = sanitize(value, field);
+// //     const setter = setters[type][field];
+// //     setter(prev => ({
+// //       ...prev,
+// //       [entityId]: { ...prev[entityId], [phaseCode]: sanitized },
+// //     }));
+// //   };
+
+// //   const handleTotalQuantityChange = (phaseCode: string, value: string) => {
+// //     const sanitized = value.replace(/[^0-9.]/g, '');
+// //     setTotalQuantities(prev => ({ ...prev, [phaseCode]: sanitized }));
+// //   };
+
+// //   const handleRemoveEquipment = (id: string) => {
+// //     setTimesheet(ts => {
+// //       if (!ts) return ts;
+// //       return { ...ts, data: { ...ts.data, equipment: ts.data.equipment.filter(eq => eq.id !== id) } };
+// //     });
+// //     setEquipmentHours(prev => {
+// //       const copy = { ...prev };
+// //       delete copy[id];
+// //       return copy;
+// //     });
+// //   };
+
+// //   const handleAddEquipment = (item: any) => {
+// //     if (!item || !item.value || !timesheet) return;
+
+// //     const equipmentToAdd = availableEquipment.find(eq => eq.id === item.value);
+// //     if (timesheet.data.equipment.some(e => e.id === equipmentToAdd.id)) {
+// //       Alert.alert('Duplicate', 'This equipment has already been added.');
+// //       return;
+// //     }
+// //     setTimesheet(ts => {
+// //       if (!ts) return ts;
+// //       return { ...ts, data: { ...ts.data, equipment: [...ts.data.equipment, equipmentToAdd] } };
+// //     });
+// //     setEquipmentHours(prev => ({ ...prev, [equipmentToAdd.id]: {} }));
+// //   };
+
+// //   const handleSave = async () => {
+// //     if (!timesheet) return;
+// //     setIsSubmitting(true);
+
+// //     try {
+// //         const toNumbersSimple = (m: Record<string, string>): Record<string, number> => {
+// //             const out: Record<string, number> = {};
+// //             Object.keys(m).forEach(phase => {
+// //                 const num = parseFloat(m[phase] || '0');
+// //                 out[phase] = !isNaN(num) ? num : 0;
+// //             });
+// //             return out;
+// //         };
+
+// //         const processEmployees = (
+// //           empId: string, 
+// //           phaseHours: { [phase: string]: { [classCode: string]: string } }
+// //         ): Record<string, Record<string, number>> => {
+// //             const out: Record<string, Record<string, number>> = {};
+// //             Object.keys(phaseHours).forEach(phase => {
+// //                 out[phase] = {};
+// //                 const classEntries = phaseHours[phase];
+// //                 Object.keys(classEntries).forEach(classCode => {
+// //                     const num = parseFloat(classEntries[classCode] || '0');
+// //                     if (!isNaN(num) && num > 0) {
+// //                       out[phase][classCode] = num;
+// //                     }
+// //                 });
+// //             });
+// //             return out;
+// //         };
+
+// //         const processEquipment = (m: { [key: string]: { REG?: string; S_B?: string } }): Record<string, { REG: number; S_B: number }> => {
+// //             const out: Record<string, { REG: number; S_B: number }> = {};
+// //             Object.keys(m).forEach(phase => {
+// //                 const reg = parseFloat(m[phase]?.REG || '0');
+// //                 const sb = parseFloat(m[phase]?.S_B || '0');
+// //                 out[phase] = { REG: isNaN(reg) ? 0 : reg, S_B: isNaN(sb) ? 0 : sb };
+// //             });
+// //             return out;
+// //         };
+
+// //       const updatedEmployees = timesheet.data.employees.map(emp => ({
+// //         ...emp,
+// //         hours_per_phase: processEmployees(emp.id, employeeHours[emp.id] || {}),
+// //       }));
+
+// //       const updatedEquipment = timesheet.data.equipment.map(eq => ({
+// //         ...eq,
+// //         hours_per_phase: processEquipment(equipmentHours[eq.id] || {}),
+// //       }));
+      
+// //       const updatedMaterials = timesheet.data.materials.map(mat => ({
+// //         ...mat,
+// //         hours_per_phase: toNumbersSimple(materialHours[mat.id] || {}),
+// //         tickets_per_phase: toNumbersSimple(materialTickets[mat.id] || {}),
+// //       }));
+
+// //       const updatedVendors = timesheet.data.vendors.map(ven => ({
+// //         ...ven,
+// //         // 'hours_per_phase' now represents quantities for vendors
+// //         hours_per_phase: toNumbersSimple(vendorHours[ven.id] || {}),
+// //         tickets_per_phase: toNumbersSimple(vendorTickets[ven.id] || {}),
+// //       }));
+
+// //       const updatedData = {
+// //         ...timesheet.data,
+// //         employees: updatedEmployees,
+// //         equipment: updatedEquipment,
+// //         materials: updatedMaterials,
+// //         vendors: updatedVendors,
+// //         total_quantities_per_phase: toNumbersSimple(totalQuantities),
+// //         notes,
+// //       };
+
+// //       const payload = {
+// //         data: updatedData,
+// //         date: timesheetDate.toISOString(),
+// //         status: 'Pending',
+// //       };
+
+// //       await apiClient.put(`/api/timesheets/${timesheet.id}`, payload);
+// //       Alert.alert('Success', 'Timesheet draft saved successfully!');
+// //       navigation.goBack();
+
+// //     } catch (e: any) {
+// //       console.error('Save failed', e.response?.data || e);
+// //       Alert.alert('Error', 'Failed to save timesheet. Please try again.');
+// //     } finally {
+// //       setIsSubmitting(false);
+// //     }
+// //   };
+
+// //   const calculateTotalEmployeeHours = (state: EmployeeHourState, entityId: string): number => {
+// //     const entityPhases = state[entityId];
+// //     if (!entityPhases) return 0;
+// //     return Object.values(entityPhases).reduce((phaseTotal, classHours) => {
+// //         const totalForPhase = Object.values(classHours).reduce((classTotal, hours) => {
+// //             const val = parseFloat(hours || '0');
+// //             return classTotal + (isNaN(val) ? 0 : val);
+// //         }, 0);
+// //         return phaseTotal + totalForPhase;
+// //     }, 0);
+// //   };
+
+// //   const calculateEmployeePhaseTotals = (state: EmployeeHourState, phaseCodes: string[] = []): PhaseTotalState => {
+// //     const totals: PhaseTotalState = {};
+// //     phaseCodes.forEach(p => { totals[p] = 0; });
+
+// //     Object.values(state).forEach(perEntity => { // For each employee
+// //         phaseCodes.forEach(p => { // For each phase
+// //             if (perEntity[p]) {
+// //                 Object.values(perEntity[p]).forEach(hoursStr => { // For each class code's hours
+// //                     const val = parseFloat(hoursStr || '0');
+// //                     if (!isNaN(val)) {
+// //                         totals[p] += val;
+// //                     }
+// //                 });
+// //             }
+// //         });
+// //     });
+// //     return totals;
+// //   };
+
+// //   const calculateTotalComplexHours = (hoursState: ComplexHourState, entityId: string): number => {
+// //     const m = hoursState[entityId];
+// //     if (!m) return 0;
+// //     return Object.values(m).reduce((t, v) => {
+// //         const reg = parseFloat(v?.REG || '0');
+// //         const sb = parseFloat(v?.S_B || '0');
+// //         return t + (isNaN(reg) ? 0 : reg) + (isNaN(sb) ? 0 : sb);
+// //     }, 0);
+// //   };
+
+// //   const calculateComplexPhaseTotals = (hoursState: ComplexHourState, phaseCodes: string[] = []): PhaseTotalState => {
+// //     const totals: PhaseTotalState = {};
+// //     phaseCodes.forEach(p => { totals[p] = 0; });
+// //     Object.values(hoursState).forEach(perEntity => {
+// //       phaseCodes.forEach(p => {
+// //         const reg = parseFloat(perEntity[p]?.REG || '0');
+// //         const sb = parseFloat(perEntity[p]?.S_B || '0');
+// //         if (!isNaN(reg)) totals[p] += reg;
+// //         if (!isNaN(sb)) totals[p] += sb;
+// //       });
+// //     });
+// //     return totals;
+// //   };
+
+// //   const calculateTotalSimple = (state: SimpleHourState, entityId: string): number => {
+// //     const m = state[entityId];
+// //     if (!m) return 0;
+// //     return Object.values(m).reduce((t, v) => t + (parseFloat(v || '0')), 0);
+// //   };
+
+// //   const calculateSimplePhaseTotals = (state: SimpleHourState, phaseCodes: string[] = []): PhaseTotalState => {
+// //     const totals: PhaseTotalState = {};
+// //     phaseCodes.forEach(p => { totals[p] = 0; });
+// //     Object.values(state).forEach(perEntity => {
+// //       phaseCodes.forEach(p => {
+// //         const val = parseFloat(perEntity[p] || '0');
+// //         if (!isNaN(val)) totals[p] += val;
+// //       });
+// //     });
+// //     return totals;
+// //   };
+
+// //   const renderEmployeeInputs = () => {
+// //     const phaseTotals = calculateEmployeePhaseTotals(employeeHours, timesheet?.data.job.phase_codes as string[]);
+// //     const employees = timesheet?.data.employees || [];
+
+// //     return (
+// //       <View style={styles.card}>
+// //         <Text style={styles.cardTitle}>Employees</Text>
+// //         {employees.map((entity, index) => {
+// //           const total = calculateTotalEmployeeHours(employeeHours, entity.id);
+// // const name = `${entity.id} - ${entity.first_name} ${entity.middle_name || ''} ${entity.last_name}`.trim();
+// //           const isLast = index === employees.length - 1;
+// //           const classCodes = [entity.class_1, entity.class_2].filter(Boolean);
+
+// //           return (
+// //             <View key={entity.id} style={[styles.entityContainer, isLast && styles.lastEntityContainer]}>
+// //               <Text style={styles.inputLabel}>{name}</Text>
+// //               <View style={styles.controlsRow}>
+// //                 <View style={styles.hoursContainer}>
+// // {classCodes.map((cc, idx) => (
+// //   <View style={styles.inputWithLabel} key={cc}>
+// //     <Text style={styles.inputHeader}>Hours</Text>
+// //     <TextInput
+// //       style={styles.input}
+// //       keyboardType="numeric"
+// //       placeholder="0"
+// //       value={employeeHours[entity.id]?.[selectedPhase!]?.[cc as string]}
+// //       onChangeText={text => handleEmployeeHourChange(entity.id, selectedPhase!, cc as string, text)}
+// //     />
+// //   </View>
+// // ))}
+
+// //                   <View style={styles.inputWithLabel}>
+// //                     <Text style={styles.inputHeader}>Total</Text>
+// //                     <View style={styles.totalBox}>
+// //                         <Text style={styles.totalText}>{total.toFixed(1)}</Text>
+// //                     </View>
+// //                   </View>
+// //                 </View>
+// //               </View>
+// //             </View>
+// //           );
+// //         })}
+// //         <View style={styles.totalsRow}>
+// //             <Text style={styles.totalsLabel}>Total Hours</Text>
+// //             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.totalsContainer}>
+// //             {timesheet?.data.job.phase_codes?.map(phase => (
+// //                 <View key={phase as string} style={styles.totalPhaseItem}>
+// //                     <Text style={styles.totalPhaseHeader}>{phase as string}</Text>
+// //                     <View style={styles.totalBox}>
+// //                         <Text style={styles.totalText}>{phaseTotals[phase as string]?.toFixed(1) || '0.0'}</Text>
+// //                     </View>
+// //                 </View>
+// //             ))}
+// //             </ScrollView>
+// //         </View>
+// //       </View>
+// //     );
+// //   };
+
+// //   const renderEntityInputs = (
+// //     title: string, 
+// //     entities: any[] = [], 
+// //     type: 'equipment' | 'material' | 'vendor'
+// //   ) => {
+// //     if (entities.length === 0 && type !== 'equipment') return null;
+    
+// //     const isEquipment = type === 'equipment';
+// //     const isMaterial = type === 'material';
+// //     const isVendor = type === 'vendor';
+
+// //     const hoursState = isEquipment ? equipmentHours : (isMaterial ? materialHours : vendorHours);
+    
+// //     const phaseHourTotals = isEquipment 
+// //         ? calculateComplexPhaseTotals(hoursState as ComplexHourState, timesheet?.data.job.phase_codes as string[])
+// //         : calculateSimplePhaseTotals(hoursState as SimpleHourState, timesheet?.data.job.phase_codes as string[]);
+    
+// //     const getHeader = (fieldType: 'hours' | 'tickets') => {
+// //         if (isMaterial) {
+// //             return fieldType === 'hours' ? 'Trucking Hrs' : 'Mat. Qty';
+// //         }
+// //         if (isVendor) {
+// //             return fieldType === 'hours' ? 'Qty / Unit' : 'Tickets';
+// //         }
+// //         return fieldType === 'hours' ? 'Hours' : 'Tickets';
+// //     };
+
+
+// //     return (
+// //       <View style={styles.card}>
+// //         <Text style={styles.cardTitle}>{title}</Text>
+// //         {entities.map((entity, index) => {
+// //           const totalHours = isEquipment 
+// //             ? calculateTotalComplexHours(hoursState as ComplexHourState, entity.id)
+// //             : calculateTotalSimple(hoursState as SimpleHourState, entity.id);
+// //           const name = isEquipment ? `${entity.id} - ${entity.name}` : entity.name;
+// //           const isLast = index === entities.length - 1 && !isEquipment;
+
+// //           return (
+// //             <View key={entity.id} style={[styles.entityContainer, isLast && styles.lastEntityContainer]}>
+// //               <Text style={styles.inputLabel}>{name}</Text>
+// //               <View style={styles.controlsRow}>
+// //                 <View style={{ flex: 1 }}>
+// //                   <View style={styles.hoursContainer}>
+// //                     {isEquipment ? (
+// //                       <>
+// //                         <View style={styles.inputWithLabel}>
+// //                           <Text style={styles.inputHeader}>REG</Text>
+// //                           <TextInput
+// //                             style={styles.input} keyboardType="numeric" placeholder="0"
+// //                             value={equipmentHours[entity.id]?.[selectedPhase!]?.REG}
+// //                             onChangeText={text => handleComplexHourChange(setEquipmentHours, entity.id, selectedPhase!, 'REG', text)}
+// //                           />
+// //                         </View>
+// //                         <View style={styles.inputWithLabel}>
+// //                           <Text style={styles.inputHeader}>S.B</Text>
+// //                           <TextInput
+// //                             style={styles.input} keyboardType="numeric" placeholder="0"
+// //                             value={equipmentHours[entity.id]?.[selectedPhase!]?.S_B}
+// //                             onChangeText={text => handleComplexHourChange(setEquipmentHours, entity.id, selectedPhase!, 'S_B', text)}
+// //                           />
+// //                         </View>
+// //                       </>
+// //                     ) : (
+// //                       <>
+// //                         <View style={styles.inputWithLabel}>
+// //                           <Text style={styles.inputHeader}>{getHeader('hours')}</Text>
+// //                           <TextInput
+// //                             style={styles.input} keyboardType="numeric" placeholder="0"
+// //                             value={(isMaterial ? materialHours : vendorHours)[entity.id]?.[selectedPhase!]}
+// //                             onChangeText={text => handleSimpleValueChange(type, 'hours', entity.id, selectedPhase!, text)}
+// //                           />
+// //                         </View>
+// //                         <View style={styles.inputWithLabel}>
+// //                             <Text style={styles.inputHeader}>{getHeader('tickets')}</Text>
+// //                             <TextInput
+// //                                 style={styles.input} keyboardType="number-pad" placeholder="0"
+// //                                 value={(isMaterial ? materialTickets : vendorTickets)[entity.id]?.[selectedPhase!]}
+// //                                 onChangeText={text => handleSimpleValueChange(type, 'tickets', entity.id, selectedPhase!, text)}
+// //                             />
+// //                         </View>
+// //                       </>
+// //                     )}
+// //                     <View style={styles.inputWithLabel}>
+// //                         <Text style={styles.inputHeader}>Total</Text>
+// //                         <View style={styles.totalBox}><Text style={styles.totalText}>{totalHours.toFixed(1)}</Text></View>
+// //                     </View>
+// //                   </View>
+// //                 </View>
+// //                 {isEquipment ? (
+// //                   <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveEquipment(entity.id)}>
+// //                     <Text style={styles.removeButtonText}>X</Text>
+// //                   </TouchableOpacity>
+// //                 ) : <View style={{ width: 44, marginLeft: 10 }} />}
+// //               </View>
+// //             </View>
+// //           );
+// //         })}
+// //         <View style={styles.totalsRow}>
+// //             <Text style={styles.totalsLabel}>{isMaterial ? 'Total Trucking Hrs' : isVendor ? 'Total Qty' : 'Total Hours'}</Text>
+// //             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.totalsContainer}>
+// //             {timesheet?.data.job.phase_codes?.map(phase => (
+// //                 <View key={`${phase as string}-h`} style={styles.totalPhaseItem}>
+// //                     <Text style={styles.totalPhaseHeader}>{phase as string}</Text>
+// //                     <View style={styles.totalBox}>
+// //                         <Text style={styles.totalText}>{phaseHourTotals[phase as string]?.toFixed(1) || '0.0'}</Text>
+// //                     </View>
+// //                 </View>
+// //             ))}
+// //             </ScrollView>
+// //         </View>
+// //         {isEquipment && (
+// //           <View style={styles.addEquipmentRow}>
+// //             <Dropdown
+// //               style={[styles.dropdown, { flex: 1 }]}
+// //               data={availableEquipment
+// //                 .filter(eq => !timesheet?.data.equipment.some(e => e.id === eq.id))
+// //                 .map(eq => ({ label: `${eq.id} - ${eq.name}`, value: eq.id }))
+// //               }
+// //               labelField="label" valueField="value" placeholder="Select equipment to add"
+// //               value={null} onChange={handleAddEquipment} maxHeight={200} search searchPlaceholder="Search..."
+// //             />
+// //           </View>
+// //         )}
+// //       </View>
+// //     );
+// //   };
+
+// //   if (loading) {
+// //     return <ActivityIndicator size="large" style={styles.centered} />;
+// //   }
+// //   if (!timesheet) {
+// //     return <View style={styles.centered}><Text>Timesheet not found</Text></View>;
+// //   }
+
+// //   const { data } = timesheet;
+// //   return (
+// //     <SafeAreaView style={styles.safeArea}>
+// //       <ScrollView
+// //         style={{ flex: 1 }}
+// //         contentContainerStyle={{ padding: THEME.SPACING, paddingBottom: 100 }}
+// //         keyboardShouldPersistTaps="handled"
+// //       >
+// //         <View style={styles.infoCard}>
+// //           <Text style={styles.jobTitle}>{data.job_name}</Text>
+// //           <Text style={styles.jobCode}>Job Code: {data.job.job_code}</Text>
+// //           <View style={styles.infoGrid}>
+// //             <View style={styles.infoItem}>
+// //               <Text style={styles.infoLabel}>Date</Text>
+// //               <TouchableOpacity onPress={() => setDatePickerVisible(true)}>
+// //                 <Text style={styles.infoValueClickable}>{timesheetDate.toLocaleDateString()}</Text>
+// //               </TouchableOpacity>
+// //             </View>
+// //             <View style={styles.infoItem}><Text style={styles.infoLabel}>Foreman</Text><Text style={styles.infoValue}>{foremanName}</Text></View>
+// //             <View style={styles.infoItem}><Text style={styles.infoLabel}>Project Engineer</Text><Text style={styles.infoValue}>{data.project_engineer || 'N/A'}</Text></View>
+// //             <View style={styles.infoItem}><Text style={styles.infoLabel}>Day</Text><Text style={styles.infoValue}>{data.time_of_day || 'N/A'}</Text></View>
+// //             <View style={styles.infoItem}><Text style={styles.infoLabel}>Location</Text><Text style={styles.infoValue}>{data.location || 'N/A'}</Text></View>
+// //             <View style={styles.infoItem}><Text style={styles.infoLabel}>Weather</Text><Text style={styles.infoValue}>{data.weather || 'N/A'}</Text></View>
+// //             <View style={styles.infoItem}><Text style={styles.infoLabel}>Temperature</Text><Text style={styles.infoValue}>{data.temperature || 'N/A'}</Text></View>
+// //           </View>
+// //         </View>
+
+// //         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.phaseSelectorContainer}>
+// //           {data.job.phase_codes.map(phase => (
+// //             <TouchableOpacity
+// //               key={phase as string}
+// //               style={[styles.phaseButton, selectedPhase === phase && styles.selectedPhaseButton]}
+// //               onPress={() => setSelectedPhase(phase as string)}
+// //             >
+// //               <Text style={[styles.phaseButtonText, selectedPhase === phase && styles.selectedPhaseButtonText]}>{phase as string}</Text>
+// //             </TouchableOpacity>
+// //           ))}
+// //         </ScrollView>
+
+// //         {selectedPhase && (
+// //           <View>
+// //             {renderEmployeeInputs()}
+// //             {renderEntityInputs('Equipment', data.equipment, 'equipment')}
+// //             {renderEntityInputs('Materials and Trucking', data.materials, 'material')}
+// //             {renderEntityInputs('Work Performed', data.vendors, 'vendor')}
+// //             <View style={styles.card}>
+// //               <Text style={styles.cardTitle}>Total Quantity</Text>
+// //               <View style={styles.quantityRow}>
+// //                 <Text style={styles.quantityLabel}>Phase: {selectedPhase}</Text>
+// //                 <TextInput
+// //                   style={[styles.input, styles.quantityInput]}
+// //                   keyboardType="numeric" placeholder="Enter quantity"
+// //                   value={totalQuantities[selectedPhase]}
+// //                   onChangeText={text => handleTotalQuantityChange(selectedPhase, text)}
+// //                 />
+// //               </View>
+// //             </View>
+// //           </View>
+// //         )}
+
+// //         <View style={styles.card}>
+// //           <Text style={styles.cardTitle}>Notes</Text>
+// //           <TextInput
+// //             style={styles.notesInput} multiline maxLength={300}
+// //             placeholder="Enter any notes for this timesheet..."
+// //             value={notes} onChangeText={setNotes}
+// //           />
+// //           <Text style={styles.characterCount}>{notes.length} / 300</Text>
+// //         </View>
+// //       </ScrollView>
+
+// //       <DatePicker modal open={isDatePickerVisible} date={timesheetDate} mode="date"
+// //         onConfirm={d => { setDatePickerVisible(false); setTimesheetDate(d); }}
+// //         onCancel={() => { setDatePickerVisible(false); }}
+// //       />
+      
+// //       <View style={styles.footer}>
+// //         <TouchableOpacity
+// //           style={[styles.submitButton, { backgroundColor: isSubmitting ? THEME.textSecondary : THEME.primary }]}
+// //           onPress={handleSave}
+// //           disabled={isSubmitting}
+// //         >
+// //           {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitButtonText}>Save Draft</Text>}
+// //         </TouchableOpacity>
+// //       </View>
+// //     </SafeAreaView>
+// //   );
+// // };
+
+// // const styles = StyleSheet.create({
+// //   safeArea: { flex: 1, backgroundColor: THEME.background },
+// //   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: THEME.background },
+// //   infoCard: { padding: THEME.SPACING, backgroundColor: THEME.card, borderRadius: 14, marginBottom: THEME.SPACING, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 3, },
+// //   jobTitle: { fontSize: 24, fontWeight: 'bold', color: THEME.text },
+// //   jobCode: { fontSize: 16, color: THEME.textSecondary, marginTop: 4 },
+// //   infoGrid: { marginTop: THEME.SPACING, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+// //   infoItem: { width: '48%', marginBottom: 8 },
+// //   infoLabel: { fontSize: 14, color: THEME.textSecondary, marginBottom: 2 },
+// //   infoValue: { fontSize: 16, fontWeight: '500', color: THEME.text },
+// //   infoValueClickable: { fontSize: 16, fontWeight: '500', color: THEME.primary },
+// //   phaseSelectorContainer: { marginVertical: THEME.SPACING / 2 },
+// //   phaseButton: { paddingHorizontal: 20, paddingVertical: 10, marginRight: 10, borderRadius: 20, backgroundColor: THEME.card, borderWidth: 1, borderColor: THEME.border, },
+// //   selectedPhaseButton: { backgroundColor: THEME.primary, borderColor: THEME.primary, shadowColor: THEME.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 6, },
+// //   phaseButtonText: { color: THEME.text, fontWeight: '600', fontSize: 16 },
+// //   selectedPhaseButtonText: { color: '#FFF' },
+// //   card: { backgroundColor: THEME.card, borderRadius: 14, padding: THEME.SPACING, marginBottom: THEME.SPACING, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, },
+// //   cardTitle: { fontSize: 20, fontWeight: 'bold', color: THEME.text, marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: THEME.border, },
+// //   entityContainer: { paddingVertical: THEME.SPACING, borderBottomWidth: 1, borderBottomColor: THEME.border },
+// //   lastEntityContainer: { borderBottomWidth: 0, paddingBottom: 0 },
+// //   inputLabel: { fontSize: 18, color: THEME.text, marginBottom: 12, fontWeight: '600' },
+// //   controlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+// //   hoursContainer: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-start', flex: 1, flexWrap: 'wrap' },
+// //   inputWithLabel: { alignItems: 'center', marginLeft: 10 },
+// //   inputHeader: { fontSize: 13, color: THEME.textSecondary, marginBottom: 4, fontWeight: '500' },
+// //   input: { borderWidth: 1.5, borderColor: THEME.border, borderRadius: 10, paddingHorizontal: 10, height: 48, width: 65, textAlign: 'center', fontSize: 16, fontWeight: '500', color: THEME.text, backgroundColor: THEME.lightGray, },
+// //   totalBox: { backgroundColor: THEME.background, borderRadius: 10, height: 48, width: 70, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: THEME.border, },
+// //   totalText: { fontSize: 16, fontWeight: 'bold', color: THEME.text },
+// //   dropdown: { height: 48, borderColor: THEME.border, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, backgroundColor: THEME.lightGray, },
+// //   removeButton: { marginLeft: 10, width: 48, height: 48, borderRadius: 10, justifyContent: 'center', alignItems: 'center', backgroundColor: `${THEME.danger}1A`, },
+// //   removeButtonText: { color: THEME.danger, fontWeight: 'bold', fontSize: 20, },
+// //   addEquipmentRow: { marginTop: THEME.SPACING, borderTopWidth: 1, borderTopColor: THEME.border, paddingTop: THEME.SPACING },
+// //   quantityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+// //   quantityLabel: { fontSize: 16, fontWeight: '500', color: THEME.text },
+// //   quantityInput: { width: 150 },
+// //   totalsRow: { flexDirection: 'row', alignItems: 'center', marginTop: THEME.SPACING, paddingTop: THEME.SPACING, borderTopWidth: 1, borderTopColor: THEME.border, },
+// //   totalsLabel: { fontSize: 16, fontWeight: 'bold', color: THEME.text, marginRight: 10 },
+// //   totalsContainer: { flexDirection: 'row' },
+// //   totalPhaseItem: { alignItems: 'center', marginHorizontal: 4 },
+// //   totalPhaseHeader: { fontSize: 12, color: THEME.textSecondary, marginBottom: 4 },
+// //   footer: { padding: THEME.SPACING, backgroundColor: THEME.card, borderTopWidth: 1, borderTopColor: THEME.border, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 5, },
+// //   submitButton: { padding: THEME.SPACING, borderRadius: 14, alignItems: 'center', justifyContent: 'center', height: 56, },
+// //   submitButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
+// //   notesInput: { borderWidth: 1.5, borderColor: THEME.border, borderRadius: 10, padding: 12, height: 100, textAlignVertical: 'top', fontSize: 16, color: THEME.text, backgroundColor: THEME.lightGray, },
+// //   characterCount: { fontSize: 12, color: THEME.textSecondary, textAlign: 'right', marginTop: 4 },
+// // });
+
+// // export default TimesheetEditScreen;
+// import React, { useState, useEffect } from 'react';
+// import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, SafeAreaView, Alert } from 'react-native';
+// import { RouteProp } from '@react-navigation/native';
+// import { StackNavigationProp } from '@react-navigation/stack';
+// import DatePicker from 'react-native-date-picker';
+// import apiClient from '../../api/apiClient';
+// import { Timesheet } from '../../types';
+// import { ForemanStackParamList } from '../../navigation/AppNavigator';
+// import { Dropdown } from 'react-native-element-dropdown';
+
+
+// // --- Theme Constants ---
+// const THEME = {
+//   primary: '#007AFF',
+//   success: '#34C759',
+//   danger: '#FF3B30',
+//   background: '#F0F0F7',
+//   card: '#FFFFFF',
+//   text: '#1C1C1E',
+//   textSecondary: '#6A6A6A',
+//   border: '#E0E0E5',
+//   lightGray: '#F8F8F8',
+//   SPACING: 16,
+// };
+
+
+// // --- Type Definitions ---
+// type ComplexHourState = { [key: string]: { [key: string]: { REG?: string; S_B?: string } } };
+// type EmployeeHourState = { [key: string]: { [key: string]: { [classCode: string]: string } } };
+// type SimpleHourState = { [key: string]: { [key: string]: string } };
+// type QuantityState = { [key: string]: string };
+// type PhaseTotalState = { [key: string]: number };
+// type UnitState = { [key: string]: string | null };
+// type EditScreenRouteProp = RouteProp<ForemanStackParamList, 'TimesheetEdit'>;
+// type EditScreenNavigationProp = StackNavigationProp<ForemanStackParamList, 'TimesheetEdit'>;
+// type Props = { route: EditScreenRouteProp; navigation: EditScreenNavigationProp; };
+
+
+// // --- Unit Constants ---
+// const MATERIAL_UNITS = [
+//   { label: 'Cubic Yards (CY)', value: 'CY' },
+//   { label: 'Tons (TON)', value: 'TON' },
+//   { label: 'Square Feet (SF)', value: 'SF' },
+//   { label: 'Square Yards (SY)', value: 'SY' },
+//   { label: 'Linear Feet (LF)', value: 'LF' },
+//   { label: 'Each (EA)', value: 'EA' },
+//   { label: 'Cube', value: 'cube' },
+//   { label: 'Yard', value: 'yar' },
+// ];
+
+
+// const WORK_PERFORMED_UNITS = [
+//   { label: 'Cubic Yards (CY)', value: 'CY' },
+//   { label: 'Tons (TON)', value: 'TON' },
+//   { label: 'Square Feet (SF)', value: 'SF' },
+//   { label: 'Square Yards (SY)', value: 'SY' },
+//   { label: 'Linear Feet (LF)', value: 'LF' },
+//   { label: 'Each (EA)', value: 'EA' },
+// ];
+
+
+// const TimesheetEditScreen = ({ route, navigation }: Props) => {
+//   const { timesheetId } = route.params;
+
+
+//   const [timesheet, setTimesheet] = useState<Timesheet | null>(null);
+//   const [foremanName, setForemanName] = useState('');
+//   const [selectedPhase, setSelectedPhase] = useState<string | null>(null);
+//   const [timesheetDate, setTimesheetDate] = useState(new Date());
+//   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
+//   const [notes, setNotes] = useState('');
+//   const [jobTitle, setJobTitle] = useState('Timesheet');
+
+
+//   const [employeeHours, setEmployeeHours] = useState<EmployeeHourState>({});
+//   const [equipmentHours, setEquipmentHours] = useState<ComplexHourState>({});
+//   const [materialHours, setMaterialHours] = useState<SimpleHourState>({});
+//   const [vendorHours, setVendorHours] = useState<SimpleHourState>({});
+//   const [materialTickets, setMaterialTickets] = useState<SimpleHourState>({});
+//   const [vendorTickets, setVendorTickets] = useState<SimpleHourState>({});
+//   const [totalQuantities, setTotalQuantities] = useState<QuantityState>({});
+//   const [materialUnits, setMaterialUnits] = useState<UnitState>({});
+//   const [vendorUnits, setVendorUnits] = useState<UnitState>({});
+//   const [availableEquipment, setAvailableEquipment] = useState<any[]>([]);
+
+
+//   const [loading, setLoading] = useState(true);
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+
+
+//   useEffect(() => {
+//     const fetchData = async () => {
+//       try {
+//         const response = await apiClient.get(`/api/timesheets/${timesheetId}`);
+//         const tsData: Timesheet = response.data;
+//         setTimesheet(tsData);
+//         setTimesheetDate(new Date(tsData.date));
+//         setNotes(tsData.data.notes || '');
+//         const jobName = tsData.data.job?.job_description || tsData.data.job_name || 'Timesheet';
+//         setJobTitle(jobName);
+//         navigation.setOptions({ title: `${jobName} - Edit` });
+
+
+//         if (tsData.data.job.phase_codes?.length > 0) {
+//           setSelectedPhase(tsData.data.job.phase_codes[0]);
+//         }
+
+
+//         const populateSimple = (entities: any[], field: 'hours_per_phase' | 'tickets_per_phase'): SimpleHourState => {
+//           const state: SimpleHourState = {};
+//           entities.forEach(e => {
+//             state[e.id] = {};
+//             if (e[field]) {
+//               for (const phase in e[field]) {
+//                 state[e.id][phase] = e[field][phase]?.toString() || '';
+//               }
+//             }
+//           });
+//           return state;
+//         };
+
+
+//         const populateEmployees = (entities: any[]): EmployeeHourState => {
+//           const state: EmployeeHourState = {};
+//           entities.forEach(e => {
+//             state[e.id] = {};
+//             if (e.hours_per_phase) {
+//               for (const phase in e.hours_per_phase) {
+//                 state[e.id][phase] = {};
+//                 const v = e.hours_per_phase[phase];
+//                 if (v && typeof v === 'object') {
+//                   for (const classCode in v) {
+//                     state[e.id][phase][classCode] = (v[classCode] ?? '').toString();
+//                   }
+//                 }
+//               }
+//             }
+//           });
+//           return state;
+//         };
+
+
+//         const populateEquipmentComplex = (entities: any[]): ComplexHourState => {
+//           const state: ComplexHourState = {};
+//           entities.forEach(e => {
+//             state[e.id] = {};
+//             if (e.hours_per_phase) {
+//               for (const phase in e.hours_per_phase) {
+//                 const v = e.hours_per_phase[phase];
+//                 if (v && typeof v === 'object') {
+//                   state[e.id][phase] = { REG: v.REG?.toString() || '', S_B: v.S_B?.toString() || '' };
+//                 } else {
+//                   const num = parseFloat(v ?? 0);
+//                   state[e.id][phase] = { REG: !isNaN(num) ? num.toString() : '', S_B: '' };
+//                 }
+//               }
+//             }
+//           });
+//           return state;
+//         };
+//         const populateUnits = (entities: any[]): UnitState => {
+//             const state: UnitState = {};
+//             entities.forEach(e => {
+//               state[e.id] = e.unit || null;
+//             });
+//             return state;
+//         };
+//         
+//         setEmployeeHours(populateEmployees(tsData.data.employees));
+//         setEquipmentHours(populateEquipmentComplex(tsData.data.equipment));
+//         setMaterialHours(populateSimple(tsData.data.materials, 'hours_per_phase'));
+//         setVendorHours(populateSimple(tsData.data.vendors, 'hours_per_phase'));
+//         setMaterialTickets(populateSimple(tsData.data.materials, 'tickets_per_phase'));
+//         setVendorTickets(populateSimple(tsData.data.vendors, 'tickets_per_phase'));
+//         setMaterialUnits(populateUnits(tsData.data.materials));
+//         setVendorUnits(populateUnits(tsData.data.vendors));
+
+
+//         if (tsData.data.total_quantities_per_phase) {
+//           const q: QuantityState = {};
+//           for (const phase in tsData.data.total_quantities_per_phase) {
+//             q[phase] = String(tsData.data.total_quantities_per_phase[phase]);
+//           }
+//           setTotalQuantities(q);
+//         }
+
+
+//         const eqRes = await apiClient.get('/api/equipment');
+//         setAvailableEquipment(eqRes.data);
+
+
+//         const res = await apiClient.get(`/api/users/${tsData.foreman_id}`);
+//         setForemanName(`${res.data.first_name} ${res.data.middle_name || ''} ${res.data.last_name}`.trim());
+
+
+//       } catch (err) {
+//         console.error(err);
+//         Alert.alert('Error', 'Failed to load timesheet data.');
+//       } finally {
+//         setLoading(false);
+//       }
+//     };
+//     fetchData();
+//   }, [timesheetId, navigation]);
+
+
+//   const handleEmployeeHourChange = (employeeId: string, phaseCode: string, classCode: string, value: string) => {
+//     const sanitized = value.replace(/[^0-9.]/g, '');
+//     setEmployeeHours(prev => ({
+//       ...prev,
+//       [employeeId]: {
+//         ...prev[employeeId],
+//         [phaseCode]: {
+//           ...prev[employeeId]?.[phaseCode],
+//           [classCode]: sanitized,
+//         },
+//       },
+//     }));
+//   };
+
+
+//   const handleComplexHourChange = (
+//     setter: React.Dispatch<React.SetStateAction<ComplexHourState>>,
+//     entityId: string,
+//     phaseCode: string,
+//     hourType: 'REG' | 'S_B',
+//     value: string
+//   ) => {
+//     const sanitized = value.replace(/[^0-9.]/g, '');
+//     setter(prev => ({
+//       ...prev,
+//       [entityId]: {
+//         ...prev[entityId],
+//         [phaseCode]: { ...prev[entityId]?.[phaseCode], [hourType]: sanitized },
+//       },
+//     }));
+//   };
+
+
+//   const handleSimpleValueChange = (
+//     type: 'material' | 'vendor',
+//     field: 'hours' | 'tickets',
+//     entityId: string,
+//     phaseCode: string,
+//     value: string
+//   ) => {
+//     const setters = {
+//       material: { hours: setMaterialHours, tickets: setMaterialTickets },
+//       vendor: { hours: setVendorHours, tickets: setVendorTickets },
+//     };
+//     const sanitize = (val: string, fieldType: 'hours' | 'tickets') => {
+//         if (type === 'vendor' && field === 'hours') return val.replace(/[^0-9.]/g, ''); 
+//         return fieldType === 'hours' ? val.replace(/[^0-9.]/g, '') : val.replace(/[^0-9]/g, '');
+//     }
+//     const sanitized = sanitize(value, field);
+//     const setter = setters[type][field];
+//     setter(prev => ({
+//       ...prev,
+//       [entityId]: { ...prev[entityId], [phaseCode]: sanitized },
+//     }));
+//   };
+//   const handleUnitChange = (
+//     type: 'material' | 'vendor',
+//     entityId: string,
+//     unit: string
+//   ) => {
+//     const setter = type === 'material' ? setMaterialUnits : setVendorUnits;
+//     setter(prev => ({ ...prev, [entityId]: unit }));
+//   };
+
+
+//   const handleTotalQuantityChange = (phaseCode: string, value: string) => {
+//     const sanitized = value.replace(/[^0-9.]/g, '');
+//     setTotalQuantities(prev => ({ ...prev, [phaseCode]: sanitized }));
+//   };
+
+
+//   const handleRemoveEquipment = (id: string) => {
+//     setTimesheet(ts => {
+//       if (!ts) return ts;
+//       return { ...ts, data: { ...ts.data, equipment: ts.data.equipment.filter(eq => eq.id !== id) } };
+//     });
+//     setEquipmentHours(prev => {
+//       const copy = { ...prev };
+//       delete copy[id];
+//       return copy;
+//     });
+//   };
+
+
+//   const handleAddEquipment = (item: any) => {
+//     if (!item || !item.value || !timesheet) return;
+
+
+//     const equipmentToAdd = availableEquipment.find(eq => eq.id === item.value);
+//     if (timesheet.data.equipment.some(e => e.id === equipmentToAdd.id)) {
+//       Alert.alert('Duplicate', 'This equipment has already been added.');
+//       return;
+//     }
+//     setTimesheet(ts => {
+//       if (!ts) return ts;
+//       return { ...ts, data: { ...ts.data, equipment: [...ts.data.equipment, equipmentToAdd] } };
+//     });
+//     setEquipmentHours(prev => ({ ...prev, [equipmentToAdd.id]: {} }));
+//   };
+
+
+//   const handleSave = async () => {
+//     if (!timesheet) return;
+//     setIsSubmitting(true);
+
+
+//     try {
+//         const toNumbersSimple = (m: Record<string, string>): Record<string, number> => {
+//             const out: Record<string, number> = {};
+//             Object.keys(m).forEach(phase => {
+//                 const num = parseFloat(m[phase] || '0');
+//                 out[phase] = !isNaN(num) ? num : 0;
+//             });
+//             return out;
+//         };
+
+
+//         const processEmployees = (
+//           empId: string, 
+//           phaseHours: { [phase: string]: { [classCode: string]: string } }
+//         ): Record<string, Record<string, number>> => {
+//             const out: Record<string, Record<string, number>> = {};
+//             Object.keys(phaseHours).forEach(phase => {
+//                 out[phase] = {};
+//                 const classEntries = phaseHours[phase];
+//                 Object.keys(classEntries).forEach(classCode => {
+//                     const num = parseFloat(classEntries[classCode] || '0');
+//                     if (!isNaN(num) && num > 0) {
+//                       out[phase][classCode] = num;
+//                     }
+//                 });
+//             });
+//             return out;
+//         };
+
+
+//         const processEquipment = (m: { [key: string]: { REG?: string; S_B?: string } }): Record<string, { REG: number; S_B: number }> => {
+//             const out: Record<string, { REG: number; S_B: number }> = {};
+//             Object.keys(m).forEach(phase => {
+//                 const reg = parseFloat(m[phase]?.REG || '0');
+//                 const sb = parseFloat(m[phase]?.S_B || '0');
+//                 out[phase] = { REG: isNaN(reg) ? 0 : reg, S_B: isNaN(sb) ? 0 : sb };
+//             });
+//             return out;
+//         };
+
+
+//       const updatedEmployees = timesheet.data.employees.map(emp => ({
+//         ...emp,
+//         hours_per_phase: processEmployees(emp.id, employeeHours[emp.id] || {}),
+//       }));
+
+
+//       const updatedEquipment = timesheet.data.equipment.map(eq => ({
+//         ...eq,
+//         hours_per_phase: processEquipment(equipmentHours[eq.id] || {}),
+//       }));
+//       
+//       const updatedMaterials = timesheet.data.materials.map(mat => ({
+//         ...mat,
+//         unit: materialUnits[mat.id],
+//         hours_per_phase: toNumbersSimple(materialHours[mat.id] || {}),
+//         tickets_per_phase: toNumbersSimple(materialTickets[mat.id] || {}),
+//       }));
+
+
+//       const updatedVendors = timesheet.data.vendors.map(ven => ({
+//         ...ven,
+//         unit: vendorUnits[ven.id],
+//         hours_per_phase: toNumbersSimple(vendorHours[ven.id] || {}),
+//         tickets_per_phase: toNumbersSimple(vendorTickets[ven.id] || {}),
+//       }));
+
+
+//       const updatedData = {
+//         ...timesheet.data,
+//         employees: updatedEmployees,
+//         equipment: updatedEquipment,
+//         materials: updatedMaterials,
+//         vendors: updatedVendors,
+//         total_quantities_per_phase: toNumbersSimple(totalQuantities),
+//         notes,
+//       };
+
+
+//       const payload = {
+//         data: updatedData,
+//         date: timesheetDate.toISOString(),
+//         status: 'Pending',
+//       };
+
+
+//       await apiClient.put(`/api/timesheets/${timesheet.id}`, payload);
+//       Alert.alert('Success', 'Timesheet draft saved successfully!');
+//       navigation.goBack();
+
+
+//     } catch (e: any) {
+//       console.error('Save failed', e.response?.data || e);
+//       Alert.alert('Error', 'Failed to save timesheet. Please try again.');
+//     } finally {
+//       setIsSubmitting(false);
+//     }
+//   };
+
+
+//   const calculateTotalEmployeeHours = (state: EmployeeHourState, entityId: string): number => {
+//     const entityPhases = state[entityId];
+//     if (!entityPhases) return 0;
+//     return Object.values(entityPhases).reduce((phaseTotal, classHours) => {
+//         const totalForPhase = Object.values(classHours).reduce((classTotal, hours) => {
+//             const val = parseFloat(hours || '0');
+//             return classTotal + (isNaN(val) ? 0 : val);
+//         }, 0);
+//         return phaseTotal + totalForPhase;
+//     }, 0);
+//   };
+
+
+//   const calculateEmployeePhaseTotals = (state: EmployeeHourState, phaseCodes: string[] = []): PhaseTotalState => {
+//     const totals: PhaseTotalState = {};
+//     phaseCodes.forEach(p => { totals[p] = 0; });
+
+
+//     Object.values(state).forEach(perEntity => {
+//         phaseCodes.forEach(p => {
+//             if (perEntity[p]) {
+//                 Object.values(perEntity[p]).forEach(hoursStr => {
+//                     const val = parseFloat(hoursStr || '0');
+//                     if (!isNaN(val)) {
+//                         totals[p] += val;
+//                     }
+//                 });
+//             }
+//         });
+//     });
+//     return totals;
+//   };
+
+
+//   const calculateTotalComplexHours = (hoursState: ComplexHourState, entityId: string): number => {
+//     const m = hoursState[entityId];
+//     if (!m) return 0;
+//     return Object.values(m).reduce((t, v) => {
+//         const reg = parseFloat(v?.REG || '0');
+//         const sb = parseFloat(v?.S_B || '0');
+//         return t + (isNaN(reg) ? 0 : reg) + (isNaN(sb) ? 0 : sb);
+//     }, 0);
+//   };
+
+
+//   const calculateComplexPhaseTotals = (hoursState: ComplexHourState, phaseCodes: string[] = []): PhaseTotalState => {
+//     const totals: PhaseTotalState = {};
+//     phaseCodes.forEach(p => { totals[p] = 0; });
+//     Object.values(hoursState).forEach(perEntity => {
+//       phaseCodes.forEach(p => {
+//         const reg = parseFloat(perEntity[p]?.REG || '0');
+//         const sb = parseFloat(perEntity[p]?.S_B || '0');
+//         if (!isNaN(reg)) totals[p] += reg;
+//         if (!isNaN(sb)) totals[p] += sb;
+//       });
+//     });
+//     return totals;
+//   };
+
+
+//   const calculateTotalSimple = (state: SimpleHourState, entityId: string): number => {
+//     const m = state[entityId];
+//     if (!m) return 0;
+//     return Object.values(m).reduce((t, v) => t + parseFloat(v || '0'), 0);
+//   };
+
+
+//   const calculateSimplePhaseTotals = (state: SimpleHourState, phaseCodes: string[] = []): PhaseTotalState => {
+//     const totals: PhaseTotalState = {};
+//     phaseCodes.forEach(p => { totals[p] = 0; });
+//     Object.values(state).forEach(perEntity => {
+//       phaseCodes.forEach(p => {
+//         const val = parseFloat(perEntity[p] || '0');
+//         if (!isNaN(val)) totals[p] += val;
+//       });
+//     });
+//     return totals;
+//   };
+
+
+//   const renderEmployeeInputs = () => {
+//     const phaseTotals = calculateEmployeePhaseTotals(employeeHours, timesheet?.data.job.phase_codes as string[]);
+//     const employees = timesheet?.data.employees || [];
+
+
+//     return (
+//       <View style={styles.card}>
+//         <Text style={styles.cardTitle}>Employees</Text>
+//         {employees.map((entity, index) => {
+//           const total = calculateTotalEmployeeHours(employeeHours, entity.id);
+//           const name = `${entity.first_name} ${entity.middle_name || ''} ${entity.last_name}`.trim();
+//           const isLast = index === employees.length - 1;
+//           const classCodes = [entity.class_1, entity.class_2].filter(Boolean);
+
+
+//           return (
+//             <View key={entity.id} style={[styles.entityContainer, isLast && styles.lastEntityContainer]}>
+//               <View style={styles.entityHeader}>
+//                 <Text style={styles.employeeName}>{name}</Text>
+//                 <Text style={styles.employeeId}>ID: {entity.id}</Text>
+//               </View>
+//               <View style={styles.controlsRow}>
+//                 <View style={styles.hoursContainer}>
+//                   {classCodes.map((cc) => (
+//                     <View style={styles.inputWithLabel} key={cc}>
+//                       <Text style={styles.inputHeader}>{cc as string}</Text>
+//                       <TextInput
+//                         style={styles.input}
+//                         keyboardType="numeric"
+//                         placeholder="0"
+//                         value={employeeHours[entity.id]?.[selectedPhase!]?.[cc as string]}
+//                         onChangeText={text => handleEmployeeHourChange(entity.id, selectedPhase!, cc as string, text)}
+//                       />
+//                     </View>
+//                   ))}
+//                   <View style={styles.inputWithLabel}>
+//                     <Text style={styles.inputHeader}>Total</Text>
+//                     <View style={styles.totalBox}>
+//                       <Text style={styles.totalText}>{total.toFixed(1)}</Text>
+//                     </View>
+//                   </View>
+//                 </View>
+//               </View>
+//             </View>
+//           );
+//         })}
+//         <View style={styles.totalsRow}>
+//           <Text style={styles.totalsLabel}>Total Hours</Text>
+//           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.totalsContainer}>
+//             {timesheet?.data.job.phase_codes?.map(phase => (
+//               <View key={phase as string} style={styles.totalPhaseItem}>
+//                 <Text style={styles.totalPhaseHeader}>{phase as string}</Text>
+//                 <View style={styles.totalBox}>
+//                   <Text style={styles.totalText}>{phaseTotals[phase as string]?.toFixed(1) || '0.0'}</Text>
+//                 </View>
+//               </View>
+//             ))}
+//           </ScrollView>
+//         </View>
+//       </View>
+//     );
+//   };
+
+
+//   const renderEntityInputs = (
+//     title: string, 
+//     entities: any[] = [], 
+//     type: 'equipment' | 'material' | 'vendor'
+//   ) => {
+//     if (entities.length === 0 && type !== 'equipment') return null;
+//     
+//     const isEquipment = type === 'equipment';
+//     const isMaterial = type === 'material';
+//     const isVendor = type === 'vendor';
+
+
+//     const hoursState = isEquipment ? equipmentHours : (isMaterial ? materialHours : vendorHours);
+//     const ticketsState = isMaterial ? materialTickets : vendorTickets;
+//     
+//     const phaseHourTotals = isEquipment 
+//         ? calculateComplexPhaseTotals(hoursState as ComplexHourState, timesheet?.data.job.phase_codes as string[])
+//         : calculateSimplePhaseTotals(hoursState as SimpleHourState, timesheet?.data.job.phase_codes as string[]);
+//     
+//     const getHeader = (fieldType: 'hours' | 'tickets') => {
+//         if (isMaterial) {
+//             return fieldType === 'hours' ? 'Trucking Hrs' : 'Mat. Qty';
+//         }
+//         if (isVendor) {
+//             return fieldType === 'hours' ? 'Qty / Unit' : 'Tickets';
+//         }
+//         return 'Hours';
+//     };
+//     const calculateLabor = (matId: string, phase: string) => {
+//       const totalHours = parseFloat(materialHours[matId]?.[phase] || '0');
+//       const totalQty = parseFloat(materialTickets[matId]?.[phase] || '0');
+//       if (totalQty > 0) {
+//         return (totalHours / totalQty).toFixed(2);
+//       }
+//       return '0.00';
+//     };
+
+
+//     return (
+//       <View style={styles.card}>
+//         <Text style={styles.cardTitle}>{title}</Text>
+//         {entities.map((entity, index) => {
+//           const totalHours = isEquipment 
+//             ? calculateTotalComplexHours(hoursState as ComplexHourState, entity.id)
+//             : calculateTotalSimple(hoursState as SimpleHourState, entity.id);
+//           const name = isEquipment ? `${entity.id} - ${entity.name}` : entity.name;
+//           const isLast = index === entities.length - 1 && !isEquipment;
+
+
+//           return (
+//             <View key={entity.id} style={[styles.entityContainer, isLast && styles.lastEntityContainer]}>
+//               <Text style={styles.inputLabel}>{name}</Text>
+//               <View style={styles.controlsRow}>
+//                 <View style={{ flex: 1 }}>
+//                   <View style={styles.hoursContainer}>
+//                     {isEquipment ? (
+//                       <>
+//                         <View style={styles.inputWithLabel}>
+//                           <Text style={styles.inputHeader}>REG</Text>
+//                           <TextInput
+//                             style={styles.input} keyboardType="numeric" placeholder="0"
+//                             value={equipmentHours[entity.id]?.[selectedPhase!]?.REG}
+//                             onChangeText={text => handleComplexHourChange(setEquipmentHours, entity.id, selectedPhase!, 'REG', text)}
+//                           />
+//                         </View>
+//                         <View style={styles.inputWithLabel}>
+//                           <Text style={styles.inputHeader}>S.B</Text>
+//                           <TextInput
+//                             style={styles.input} keyboardType="numeric" placeholder="0"
+//                             value={equipmentHours[entity.id]?.[selectedPhase!]?.S_B}
+//                             onChangeText={text => handleComplexHourChange(setEquipmentHours, entity.id, selectedPhase!, 'S_B', text)}
+//                           />
+//                         </View>
+//                       </>
+//                     ) : (
+//                       <>
+//                         <View style={styles.inputWithLabel}>
+//                           <Text style={styles.inputHeader}>{getHeader('hours')}</Text>
+//                           <TextInput
+//                             style={styles.input} keyboardType="numeric" placeholder="0"
+//                             value={(hoursState as SimpleHourState)[entity.id]?.[selectedPhase!]}
+//                             onChangeText={text => handleSimpleValueChange(type, 'hours', entity.id, selectedPhase!, text)}
+//                           />
+//                         </View>
+//                         <View style={styles.inputWithLabel}>
+//                           <Text style={styles.inputHeader}>{getHeader('tickets')}</Text>
+//                           <TextInput
+//                             style={styles.input} keyboardType="number-pad" placeholder="0"
+//                             value={(ticketsState as SimpleHourState)[entity.id]?.[selectedPhase!]}
+//                             onChangeText={text => handleSimpleValueChange(type, 'tickets', entity.id, selectedPhase!, text)}
+//                           />
+//                         </View>
+//                         {(isMaterial || isVendor) && (
+//                         <View style={styles.inputWithLabel}>
+//                         <Text style={styles.inputHeader}>Unit</Text>
+//                         <Dropdown
+//                             style={[styles.dropdown, styles.unitDropdown]}
+//                             data={isMaterial ? MATERIAL_UNITS : WORK_PERFORMED_UNITS}
+//                             labelField="label"
+//                             valueField="value"
+//                             placeholder="Unit"
+//                             value={isMaterial ? materialUnits[entity.id] : vendorUnits[entity.id]}
+//                             onChange={item => handleUnitChange(type, entity.id, item.value)}
+//                             maxHeight={200}
+//                           />
+//                         </View>
+//                         )}
+//                       </>
+//                     )}
+//                     <View style={styles.inputWithLabel}>
+//                         <Text style={styles.inputHeader}>Total</Text>
+//                         <View style={styles.totalBox}><Text style={styles.totalText}>{totalHours.toFixed(1)}</Text></View>
+//                     </View>
+//                   </View>
+//                   {isMaterial && selectedPhase && (
+//                     <View style={styles.laborRateContainer}>
+//                       <Text style={styles.laborRateLabel}>Labor Rate (Hrs/Qty): </Text>
+//                       <Text style={styles.laborRateValue}>{calculateLabor(entity.id, selectedPhase)}</Text>
+//                     </View>
+//                   )}
+//                 </View>
+//                 {isEquipment ? (
+//                   <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveEquipment(entity.id)}>
+//                     <Text style={styles.removeButtonText}>X</Text>
+//                   </TouchableOpacity>
+//                 ) : <View style={{ width: 44, marginLeft: 10 }} />}
+//               </View>
+//             </View>
+//           );
+//         })}
+//         <View style={styles.totalsRow}>
+//           <Text style={styles.totalsLabel}>{isMaterial ? 'Total Trucking Hrs' : isVendor ? 'Total Qty' : 'Total Hours'}</Text>
+//           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.totalsContainer}>
+//             {timesheet?.data.job.phase_codes?.map(phase => (
+//               <View key={`${phase as string}-h`} style={styles.totalPhaseItem}>
+//                 <Text style={styles.totalPhaseHeader}>{phase as string}</Text>
+//                 <View style={styles.totalBox}>
+//                   <Text style={styles.totalText}>{phaseHourTotals[phase as string]?.toFixed(1) || '0.0'}</Text>
+//                 </View>
+//               </View>
+//             ))}
+//           </ScrollView>
+//         </View>
+//         {isEquipment && (
+//           <View style={styles.addEquipmentRow}>
+//             <Dropdown
+//               style={[styles.dropdown, { flex: 1 }]}
+//               data={availableEquipment
+//                 .filter(eq => !timesheet?.data.equipment.some(e => e.id === eq.id))
+//                 .map(eq => ({ label: `${eq.id} - ${eq.name}`, value: eq.id }))
+//               }
+//               labelField="label" valueField="value" placeholder="Select equipment to add"
+//               value={null} onChange={handleAddEquipment} maxHeight={200} search searchPlaceholder="Search..."
+//             />
+//           </View>
+//         )}
+//       </View>
+//     );
+//   };
+
+
+//   if (loading) {
+//     return <ActivityIndicator size="large" style={styles.centered} />;
+//   }
+//   if (!timesheet) {
+//     return <View style={styles.centered}><Text>Timesheet not found</Text></View>;
+//   }
+
+
+//   const { data } = timesheet;
+//   return (
+//     <SafeAreaView style={styles.safeArea}>
+//       <ScrollView
+//         style={{ flex: 1 }}
+//         contentContainerStyle={{ padding: THEME.SPACING, paddingBottom: 100 }}
+//         keyboardShouldPersistTaps="handled"
+//       >
+//         <View style={styles.infoCard}>
+//           <Text style={styles.jobTitle}>{data.job_name}</Text>
+//           <Text style={styles.jobCode}>Job Code: {data.job.job_code}</Text>
+//           <View style={styles.infoGrid}>
+//             <View style={styles.infoItem}>
+//               <Text style={styles.infoLabel}>Date</Text>
+//               <TouchableOpacity onPress={() => setDatePickerVisible(true)}>
+//                 <Text style={styles.infoValueClickable}>{timesheetDate.toLocaleDateString()}</Text>
+//               </TouchableOpacity>
+//             </View>
+//             <View style={styles.infoItem}><Text style={styles.infoLabel}>Foreman</Text><Text style={styles.infoValue}>{foremanName}</Text></View>
+//             <View style={styles.infoItem}><Text style={styles.infoLabel}>Project Engineer</Text><Text style={styles.infoValue}>{data.project_engineer || 'N/A'}</Text></View>
+//             <View style={styles.infoItem}><Text style={styles.infoLabel}>Day</Text><Text style={styles.infoValue}>{data.time_of_day || 'N/A'}</Text></View>
+//             <View style={styles.infoItem}><Text style={styles.infoLabel}>Location</Text><Text style={styles.infoValue}>{data.location || 'N/A'}</Text></View>
+//             <View style={styles.infoItem}><Text style={styles.infoLabel}>Weather</Text><Text style={styles.infoValue}>{data.weather || 'N/A'}</Text></View>
+//             <View style={styles.infoItem}><Text style={styles.infoLabel}>Temperature</Text><Text style={styles.infoValue}>{data.temperature || 'N/A'}</Text></View>
+//           </View>
+//         </View>
+
+
+//         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.phaseSelectorContainer}>
+//           {data.job.phase_codes.map(phase => (
+//             <TouchableOpacity
+//               key={phase as string}
+//               style={[styles.phaseButton, selectedPhase === phase && styles.selectedPhaseButton]}
+//               onPress={() => setSelectedPhase(phase as string)}
+//             >
+//               <Text style={[styles.phaseButtonText, selectedPhase === phase && styles.selectedPhaseButtonText]}>{phase as string}</Text>
+//             </TouchableOpacity>
+//           ))}
+//         </ScrollView>
+
+
+//         {selectedPhase && (
+//           <View>
+//             {renderEmployeeInputs()}
+//             {renderEntityInputs('Equipment', data.equipment, 'equipment')}
+//             {renderEntityInputs('Materials and Trucking', data.materials, 'material')}
+//             {renderEntityInputs('Work Performed', data.vendors, 'vendor')}
+//             <View style={styles.card}>
+//               <Text style={styles.cardTitle}>Total Quantity</Text>
+//               <View style={styles.quantityRow}>
+//                 <Text style={styles.quantityLabel}>Phase: {selectedPhase}</Text>
+//                 <TextInput
+//                   style={[styles.input, styles.quantityInput]}
+//                   keyboardType="numeric" placeholder="Enter quantity"
+//                   value={totalQuantities[selectedPhase]}
+//                   onChangeText={text => handleTotalQuantityChange(selectedPhase, text)}
+//                 />
+//               </View>
+//             </View>
+//           </View>
+//         )}
+
+
+//         <View style={styles.card}>
+//           <Text style={styles.cardTitle}>Notes</Text>
+//           <TextInput
+//             style={styles.notesInput} multiline maxLength={300}
+//             placeholder="Enter any notes for this timesheet..."
+//             value={notes} onChangeText={setNotes}
+//           />
+//           <Text style={styles.characterCount}>{notes.length} / 300</Text>
+//         </View>
+//       </ScrollView>
+
+
+//       <DatePicker modal open={isDatePickerVisible} date={timesheetDate} mode="date"
+//         onConfirm={d => { setDatePickerVisible(false); setTimesheetDate(d); }}
+//         onCancel={() => { setDatePickerVisible(false); }}
+//       />
+//       
+//       <View style={styles.footer}>
+//         <TouchableOpacity
+//           style={[styles.submitButton, { backgroundColor: isSubmitting ? THEME.textSecondary : THEME.primary }]}
+//           onPress={handleSave}
+//           disabled={isSubmitting}
+//         >
+//           {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitButtonText}>Save Draft</Text>}
+//         </TouchableOpacity>
+//       </View>
+//     </SafeAreaView>
+//   );
+// };
+
+
+// const styles = StyleSheet.create({
+//   safeArea: { flex: 1, backgroundColor: THEME.background },
+//   centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: THEME.background },
+//   infoCard: { padding: THEME.SPACING, backgroundColor: THEME.card, borderRadius: 14, marginBottom: THEME.SPACING, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 3, },
+//   jobTitle: { fontSize: 24, fontWeight: 'bold', color: THEME.text },
+//   jobCode: { fontSize: 16, color: THEME.textSecondary, marginTop: 4 },
+//   infoGrid: { marginTop: THEME.SPACING, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+//   infoItem: { width: '48%', marginBottom: 8 },
+//   infoLabel: { fontSize: 14, color: THEME.textSecondary, marginBottom: 2 },
+//   infoValue: { fontSize: 16, fontWeight: '500', color: THEME.text },
+//   infoValueClickable: { fontSize: 16, fontWeight: '500', color: THEME.primary },
+//   phaseSelectorContainer: { marginVertical: THEME.SPACING / 2 },
+//   phaseButton: { paddingHorizontal: 20, paddingVertical: 10, marginRight: 10, borderRadius: 20, backgroundColor: THEME.card, borderWidth: 1, borderColor: THEME.border, },
+//   selectedPhaseButton: { backgroundColor: THEME.primary, borderColor: THEME.primary, shadowColor: THEME.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 6, },
+//   phaseButtonText: { color: THEME.text, fontWeight: '600', fontSize: 16 },
+//   selectedPhaseButtonText: { color: '#FFF' },
+//   card: { backgroundColor: THEME.card, borderRadius: 14, padding: THEME.SPACING, marginBottom: THEME.SPACING, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, },
+//   cardTitle: { fontSize: 20, fontWeight: 'bold', color: THEME.text, marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: THEME.border, },
+//   entityContainer: { paddingVertical: THEME.SPACING, borderBottomWidth: 1, borderBottomColor: THEME.border },
+//   lastEntityContainer: { borderBottomWidth: 0, paddingBottom: 0 },
+//   entityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+//   employeeName: { fontSize: 16, color: THEME.text, fontWeight: '600' },
+//   employeeId: { fontSize: 14, color: THEME.textSecondary },
+//   inputLabel: { fontSize: 18, color: THEME.text, marginBottom: 12, fontWeight: '600' },
+//   controlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+//   hoursContainer: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-start', flex: 1, flexWrap: 'wrap' },
+//   inputWithLabel: { alignItems: 'center', marginLeft: 10 },
+//   inputHeader: { fontSize: 13, color: THEME.textSecondary, marginBottom: 4, fontWeight: '500' },
+//   input: { borderWidth: 1.5, borderColor: THEME.border, borderRadius: 10, paddingHorizontal: 10, height: 48, width: 65, textAlign: 'center', fontSize: 16, fontWeight: '500', color: THEME.text, backgroundColor: THEME.lightGray, },
+//   totalBox: { backgroundColor: THEME.background, borderRadius: 10, height: 48, width: 70, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: THEME.border, },
+//   totalText: { fontSize: 16, fontWeight: 'bold', color: THEME.text },
+//   dropdown: { height: 48, borderColor: THEME.border, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, backgroundColor: THEME.lightGray, },
+//   unitDropdown: { width: 120, marginLeft: 10 },
+//   removeButton: { marginLeft: 10, width: 48, height: 48, borderRadius: 10, justifyContent: 'center', alignItems: 'center', backgroundColor: `${THEME.danger}1A`, },
+//   removeButtonText: { color: THEME.danger, fontWeight: 'bold', fontSize: 20, },
+//   addEquipmentRow: { marginTop: THEME.SPACING, borderTopWidth: 1, borderTopColor: THEME.border, paddingTop: THEME.SPACING },
+//   quantityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+//   quantityLabel: { fontSize: 16, fontWeight: '500', color: THEME.text },
+//   quantityInput: { width: 150 },
+//   totalsRow: { flexDirection: 'row', alignItems: 'center', marginTop: THEME.SPACING, paddingTop: THEME.SPACING, borderTopWidth: 1, borderTopColor: THEME.border, },
+//   totalsLabel: { fontSize: 16, fontWeight: 'bold', color: THEME.text, marginRight: 10 },
+//   totalsContainer: { flexDirection: 'row' },
+//   totalPhaseItem: { alignItems: 'center', marginHorizontal: 4 },
+//   totalPhaseHeader: { fontSize: 12, color: THEME.textSecondary, marginBottom: 4 },
+//   footer: { padding: THEME.SPACING, backgroundColor: THEME.card, borderTopWidth: 1, borderTopColor: THEME.border, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 5, },
+//   submitButton: { padding: THEME.SPACING, borderRadius: 14, alignItems: 'center', justifyContent: 'center', height: 56, },
+//   submitButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
+//   notesInput: { borderWidth: 1.5, borderColor: THEME.border, borderRadius: 10, padding: 12, height: 100, textAlignVertical: 'top', fontSize: 16, color: THEME.text, backgroundColor: THEME.lightGray, },
+//   characterCount: { fontSize: 12, color: THEME.textSecondary, textAlign: 'right', marginTop: 4 },
+//   laborRateContainer: { marginTop: 10, flexDirection: 'row', alignItems: 'center' },
+//   laborRateLabel: { fontSize: 14, color: THEME.textSecondary },
+//   laborRateValue: { fontSize: 14, fontWeight: 'bold', color: THEME.text },
+// });
+
+
+// export default TimesheetEditScreen;
 import React, { useState, useEffect } from 'react';
-import {
-  View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity,
-  ActivityIndicator, SafeAreaView, Alert,
-} from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, SafeAreaView, Alert } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import DatePicker from 'react-native-date-picker';
@@ -11,7 +1622,7 @@ import { Timesheet } from '../../types';
 import { ForemanStackParamList } from '../../navigation/AppNavigator';
 import { Dropdown } from 'react-native-element-dropdown';
 
-// --- Theme & Unit Constants ---
+// --- Theme Constants ---
 const THEME = {
   primary: '#007AFF',
   success: '#34C759',
@@ -25,22 +1636,39 @@ const THEME = {
   SPACING: 16,
 };
 
-const MATERIAL_UNITS = ['CUBE', 'YARD', 'TON', 'LOAD', 'EACH'].map(u => ({ label: u, value: u }));
-const VENDOR_UNITS = ['CY', 'TON', 'SF', 'SY', 'LF', 'EA'].map(u => ({ label: u, value: u }));
-
-
 // --- Type Definitions ---
-type EmployeeHourState = Record<string, Record<string, { [className: string]: string }>>;
-type EquipmentHourState = Record<string, Record<string, { REG?: string; 'S.B'?: string }>>;
-type SimpleValueState = Record<string, Record<string, string>>;
-type UnitState = Record<string, string>;
-type PhaseTotalState = Record<string, number>;
-
+type ComplexHourState = { [key: string]: { [key: string]: { REG?: string; S_B?: string } } };
+type EmployeeHourState = { [key: string]: { [key: string]: { [classCode: string]: string } } };
+type SimpleHourState = { [key: string]: { [key: string]: string } };
+type QuantityState = { [key: string]: string };
+type PhaseTotalState = { [key: string]: number };
+type UnitState = { [key: string]: string | null };
 type EditScreenRouteProp = RouteProp<ForemanStackParamList, 'TimesheetEdit'>;
 type EditScreenNavigationProp = StackNavigationProp<ForemanStackParamList, 'TimesheetEdit'>;
-
 type Props = { route: EditScreenRouteProp; navigation: EditScreenNavigationProp; };
 
+// --- Unit Constants ---
+const MATERIAL_UNITS = [
+  { label: 'Hrs', value: 'Hrs' },
+  { label: 'CY', value: 'CY' },   // Changed from 'Cubic Yards (CY)'
+  { label: 'TON', value: 'TON' }, // Changed from 'Tons (TON)'
+  { label: 'SF', value: 'SF' },   // Changed from 'Square Feet (SF)'
+  { label: 'SY', value: 'SY' },   // Changed from 'Square Yards (SY)'
+  { label: 'LF', value: 'LF' },   // Changed from 'Linear Feet (LF)'
+  { label: 'EA', value: 'EA' },   // Changed from 'Each (EA)'
+  { label: 'Cube', value: 'cube' },
+  { label: 'Yard', value: 'yar' },
+];
+
+const WORK_PERFORMED_UNITS = [
+    // MODIFIED to use short labels for Vendor/Work Performed Units
+  { label: 'CY', value: 'CY' },
+  { label: 'TON', value: 'TON' },
+  { label: 'SF', value: 'SF' },
+  { label: 'SY', value: 'SY' },
+  { label: 'LF', value: 'LF' },
+  { label: 'EA', value: 'EA' },
+];
 const TimesheetEditScreen = ({ route, navigation }: Props) => {
   const { timesheetId } = route.params;
 
@@ -50,68 +1678,64 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
   const [timesheetDate, setTimesheetDate] = useState(new Date());
   const [isDatePickerVisible, setDatePickerVisible] = useState(false);
   const [notes, setNotes] = useState('');
+  const [jobTitle, setJobTitle] = useState('Timesheet');
 
-  // State for entity data
   const [employeeHours, setEmployeeHours] = useState<EmployeeHourState>({});
-  const [equipmentHours, setEquipmentHours] = useState<EquipmentHourState>({});
-  const [materialHours, setMaterialHours] = useState<SimpleValueState>({});
-  const [materialQuantities, setMaterialQuantities] = useState<SimpleValueState>({});
+  const [equipmentHours, setEquipmentHours] = useState<ComplexHourState>({});
+  const [materialHours, setMaterialHours] = useState<SimpleHourState>({});
+  const [vendorHours, setVendorHours] = useState<SimpleHourState>({});
+  const [materialTickets, setMaterialTickets] = useState<SimpleHourState>({});
+  const [vendorTickets, setVendorTickets] = useState<SimpleHourState>({});
+  const [totalQuantities, setTotalQuantities] = useState<QuantityState>({});
   const [materialUnits, setMaterialUnits] = useState<UnitState>({});
-  const [vendorQuantities, setVendorQuantities] = useState<SimpleValueState>({});
   const [vendorUnits, setVendorUnits] = useState<UnitState>({});
-  
-  const [totalQuantities, setTotalQuantities] = useState<Record<string, string>>({});
   const [availableEquipment, setAvailableEquipment] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
+const [dumpingSiteHours, setDumpingSiteHours] = useState<SimpleHourState>({});
+    const [dumpingSiteTickets, setDumpingSiteTickets] = useState<SimpleHourState>({});
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await apiClient.get<Timesheet>(`/api/timesheets/${timesheetId}`);
-        const tsData = response.data;
+        const response = await apiClient.get(`/api/timesheets/${timesheetId}`);
+        const tsData: Timesheet = response.data;
         setTimesheet(tsData);
-        setTimesheetDate(new Date(tsData.date));
-        setNotes(tsData.data.notes || '');
+        if (tsData.date) setTimesheetDate(new Date(tsData.date));
+        setNotes(tsData.data?.notes || '');
+        const jobName = tsData.data?.job?.job_description || tsData.data?.job_name || 'Timesheet';
+        setJobTitle(jobName);
+        navigation.setOptions({ title: `${jobName} - Edit` });
 
-        navigation.setOptions({ title: `${tsData.data.job_name} - Edit` });
-        if (tsData.data.job.phase_codes?.length > 0) setSelectedPhase(tsData.data.job.phase_codes[0]);
+        if (tsData.data?.job?.phase_codes?.length > 0) {
+          setSelectedPhase(tsData.data.job.phase_codes[0]);
+        }
 
-        const populateSimple = (entities: any[] = [], field: 'hours_per_phase' | 'quantities_per_phase' | 'tickets_per_phase'): SimpleValueState => {
-            const state: SimpleValueState = {};
-            entities.forEach((e) => {
-                state[e.id] = {};
-                if (e[field]) {
-                    for (const phase in e[field]) {
-                        state[e.id][phase] = e[field][phase]?.toString() || '';
-                    }
-                }
-            });
-            return state;
+        const populateSimple = (entities: any[] = [], field: 'hours_per_phase' | 'tickets_per_phase'): SimpleHourState => {
+          const state: SimpleHourState = {};
+          entities.forEach(e => {
+            state[e.id] = {};
+            if (e[field]) {
+              for (const phase in e[field]) {
+                state[e.id][phase] = e[field][phase]?.toString() || '';
+              }
+            }
+          });
+          return state;
         };
 
-        const populateUnits = (entities: any[] = [], defaultUnit: string): UnitState => {
-            const state: UnitState = {};
-            entities.forEach(e => {
-                state[e.id] = e.unit || defaultUnit;
-            });
-            return state;
-        };
-
-        const populateEmployeesComplex = (entities: any[] = []): EmployeeHourState => {
+        const populateEmployees = (entities: any[] = []): EmployeeHourState => {
           const state: EmployeeHourState = {};
-          entities.forEach((e) => {
+          entities.forEach(e => {
             state[e.id] = {};
             if (e.hours_per_phase) {
               for (const phase in e.hours_per_phase) {
-                const phaseHours = e.hours_per_phase[phase];
                 state[e.id][phase] = {};
-                if (phaseHours && typeof phaseHours === 'object') {
-                  if (e.class_1) state[e.id][phase][e.class_1] = (phaseHours[e.class_1] || '').toString();
-                  if (e.class_2) state[e.id][phase][e.class_2] = (phaseHours[e.class_2] || '').toString();
-                } else {
-                   // Fallback for older data format
-                  if(e.class_1) state[e.id][phase][e.class_1] = (phaseHours || '').toString();
+                const v = e.hours_per_phase[phase];
+                if (v && typeof v === 'object') {
+                  for (const classCode in v) {
+                    state[e.id][phase][classCode] = (v[classCode] ?? '').toString();
+                  }
                 }
               }
             }
@@ -119,18 +1743,18 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
           return state;
         };
 
-        const populateEquipmentComplex = (entities: any[] = []): EquipmentHourState => {
-          const state: EquipmentHourState = {};
-          entities.forEach((e) => {
+        const populateEquipmentComplex = (entities: any[] = []): ComplexHourState => {
+          const state: ComplexHourState = {};
+          entities.forEach(e => {
             state[e.id] = {};
             if (e.hours_per_phase) {
               for (const phase in e.hours_per_phase) {
                 const v = e.hours_per_phase[phase];
                 if (v && typeof v === 'object') {
-                  state[e.id][phase] = { REG: v.REG?.toString() || '', 'S.B': v['S.B']?.toString() || '' };
+                  state[e.id][phase] = { REG: (v.REG ?? '').toString(), S_B: (v.S_B ?? '').toString() };
                 } else {
-                  const num = parseFloat((v ?? '0').toString());
-                  state[e.id][phase] = { REG: !isNaN(num) ? num.toString() : '', 'S.B': '' };
+                  const num = parseFloat(v ?? 0);
+                  state[e.id][phase] = { REG: !isNaN(num) ? num.toString() : '', S_B: '' };
                 }
               }
             }
@@ -138,26 +1762,38 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
           return state;
         };
 
-        setEmployeeHours(populateEmployeesComplex(tsData.data.employees));
-        setEquipmentHours(populateEquipmentComplex(tsData.data.equipment));
-        setMaterialHours(populateSimple(tsData.data.materials, 'hours_per_phase'));
-        setMaterialQuantities(populateSimple(tsData.data.materials, 'quantities_per_phase'));
-        setMaterialUnits(populateUnits(tsData.data.materials, MATERIAL_UNITS[0].value));
-        setVendorQuantities(populateSimple(tsData.data.vendors, 'quantities_per_phase'));
-        setVendorUnits(populateUnits(tsData.data.vendors, VENDOR_UNITS[0].value));
+        const populateUnits = (entities: any[] = []): UnitState => {
+          const state: UnitState = {};
+          entities.forEach(e => {
+            state[e.id] = e.unit || null;
+          });
+          return state;
+        };
 
-        if (tsData.data.total_quantities_per_phase) {
-          const q: Record<string, string> = {};
+        setEmployeeHours(populateEmployees(tsData.data?.employees || []));
+        setEquipmentHours(populateEquipmentComplex(tsData.data?.equipment || []));
+        setMaterialHours(populateSimple(tsData.data?.materials || [], 'hours_per_phase'));
+        setVendorHours(populateSimple(tsData.data?.vendors || [], 'hours_per_phase'));
+        setMaterialTickets(populateSimple(tsData.data?.materials || [], 'tickets_per_phase'));
+        setVendorTickets(populateSimple(tsData.data?.vendors || [], 'tickets_per_phase'));
+        setMaterialUnits(populateUnits(tsData.data?.materials || []));
+        setVendorUnits(populateUnits(tsData.data?.vendors || []));
+    setDumpingSiteHours(populateSimple(tsData.data?.dumping_sites, 'hours_per_phase'));
+                setDumpingSiteTickets(populateSimple(tsData.data?.dumping_sites, 'tickets_per_phase'));
+        if (tsData.data?.total_quantities_per_phase) {
+          const q: QuantityState = {};
           for (const phase in tsData.data.total_quantities_per_phase) {
-            q[phase] = tsData.data.total_quantities_per_phase[phase].toString();
+            q[phase] = String(tsData.data.total_quantities_per_phase[phase]);
           }
           setTotalQuantities(q);
         }
 
-        setAvailableEquipment((await apiClient.get('/api/equipment')).data);
-        const res = await apiClient.get(`/api/users/${tsData.foreman_id}`);
-        setForemanName(`${res.data.first_name} ${res.data.middle_name || ''} ${res.data.last_name}`.trim());
+        const eqRes = await apiClient.get('/api/equipment');
+        setAvailableEquipment(eqRes.data || []);
 
+        const res = await apiClient.get(`/api/users/${tsData.foreman_id}`);
+        const fn = `${res.data?.first_name || ''} ${res.data?.middle_name || ''} ${res.data?.last_name || ''}`.replace(/\s+/g, ' ').trim();
+        setForemanName(fn);
       } catch (err) {
         console.error(err);
         Alert.alert('Error', 'Failed to load timesheet data.');
@@ -168,413 +1804,528 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
     fetchData();
   }, [timesheetId, navigation]);
 
-  // --- Handlers ---
-
-  const handleEmployeeHourChange = (employeeId: string, phaseCode: string, className: string, value: string) => {
+  const handleEmployeeHourChange = (employeeId: string, phaseCode: string, classCode: string, value: string) => {
     const sanitized = value.replace(/[^0-9.]/g, '');
     setEmployeeHours(prev => ({
       ...prev,
       [employeeId]: {
         ...prev[employeeId],
         [phaseCode]: {
-          ...(prev[employeeId]?.[phaseCode] || {}),
-          [className]: sanitized
-        }
-      }
+          ...prev[employeeId]?.[phaseCode],
+          [classCode]: sanitized,
+        },
+      },
     }));
   };
 
-  const handleEquipmentHourChange = (entityId: string, phaseCode: string, hourType: 'REG' | 'S.B', value: string) => {
-    const sanitized = value.replace(/[^0-9.]/g, '');
-    setEquipmentHours(prev => ({
-      ...prev,
-      [entityId]: { ...prev[entityId], [phaseCode]: { ...(prev[entityId]?.[phaseCode] || {}), [hourType]: sanitized } },
-    }));
-  };
-  
-  const handleMaterialVendorChange = (
-    type: 'material' | 'vendor',
-    field: 'hours' | 'quantity' | 'unit',
+  const handleComplexHourChange = (
+    setter: React.Dispatch<React.SetStateAction<ComplexHourState>>,
     entityId: string,
-    value: string,
-    phaseCode?: string,
+    phaseCode: string,
+    hourType: 'REG' | 'S_B',
+    value: string
   ) => {
-    const sanitize = (val: string) => val.replace(/[^0-9.]/g, '');
+    const sanitized = value.replace(/[^0-9.]/g, '');
+    setter(prev => ({
+      ...prev,
+      [entityId]: {
+        ...prev[entityId],
+        [phaseCode]: { ...prev[entityId]?.[phaseCode], [hourType]: sanitized },
+      },
+    }));
+  };
 
-    if (type === 'material') {
-        if (field === 'hours' && phaseCode) {
-            setMaterialHours(p => ({ ...p, [entityId]: { ...p[entityId], [phaseCode]: sanitize(value) }}));
-        } else if (field === 'quantity' && phaseCode) {
-            setMaterialQuantities(p => ({ ...p, [entityId]: { ...p[entityId], [phaseCode]: sanitize(value) }}));
-        } else if (field === 'unit') {
-            setMaterialUnits(p => ({ ...p, [entityId]: value }));
-        }
-    } else if (type === 'vendor') {
-        if (field === 'quantity' && phaseCode) {
-            setVendorQuantities(p => ({ ...p, [entityId]: { ...p[entityId], [phaseCode]: sanitize(value) }}));
-        } else if (field === 'unit') {
-            setVendorUnits(p => ({ ...p, [entityId]: value }));
-        }
-    }
+  const handleSimpleValueChange = (
+    type: 'material' | 'vendor' | 'dumping_site',
+    field: 'hours' | 'tickets',
+    entityId: string,
+    phaseCode: string,
+    value: string
+  ) => {
+    const setters = {
+      material: { hours: setMaterialHours, tickets: setMaterialTickets },
+      vendor: { hours: setVendorHours, tickets: setVendorTickets },
+    dumping_site: { hours: setDumpingSiteHours, tickets: setDumpingSiteTickets }, // NEW
+
+    };
+    const sanitize = (val: string, fieldType: 'hours' | 'tickets') => {
+      if (type === 'vendor' && field === 'hours') return val.replace(/[^0-9.]/g, '');
+      return fieldType === 'hours' ? val.replace(/[^0-9.]/g, '') : val.replace(/[^0-9]/g, '');
+    };
+    const sanitized = sanitize(value, field);
+    const setter = setters[type][field];
+    setter(prev => ({
+      ...prev,
+      [entityId]: { ...(prev[entityId] || {}), [phaseCode]: sanitized },
+    }));
+  };
+
+  const handleUnitChange = (
+    type: 'material' | 'vendor',
+    entityId: string,
+    unit: string
+  ) => {
+    const setter = type === 'material' ? setMaterialUnits : setVendorUnits;
+    setter(prev => ({ ...prev, [entityId]: unit }));
   };
 
   const handleTotalQuantityChange = (phaseCode: string, value: string) => {
     const sanitized = value.replace(/[^0-9.]/g, '');
-    setTotalQuantities((prev) => ({ ...prev, [phaseCode]: sanitized }));
+    setTotalQuantities(prev => ({ ...prev, [phaseCode]: sanitized }));
   };
 
   const handleRemoveEquipment = (id: string) => {
-    setTimesheet((ts) => {
+    setTimesheet(ts => {
       if (!ts) return ts;
-      return { ...ts, data: { ...ts.data, equipment: ts.data.equipment.filter((eq) => eq.id !== id) } };
+      return { ...ts, data: { ...ts.data, equipment: (ts.data.equipment || []).filter(eq => eq.id !== id) } };
     });
-    setEquipmentHours((prev) => { const copy = { ...prev }; delete copy[id]; return copy; });
+    setEquipmentHours(prev => {
+      const copy = { ...prev };
+      delete copy[id];
+      return copy;
+    });
   };
 
   const handleAddEquipment = (item: any) => {
     if (!item || !item.value || !timesheet) return;
     const equipmentToAdd = availableEquipment.find(eq => eq.id === item.value);
-    if (timesheet.data.equipment.some((e) => e.id === equipmentToAdd.id)) {
+    if (!equipmentToAdd) return;
+    if ((timesheet.data.equipment || []).some((e: any) => e.id === equipmentToAdd.id)) {
       Alert.alert('Duplicate', 'This equipment has already been added.');
       return;
     }
-    setTimesheet((ts) => !ts ? ts : { ...ts, data: { ...ts.data, equipment: [...ts.data.equipment, equipmentToAdd] } });
-    setEquipmentHours((prev) => ({ ...prev, [equipmentToAdd.id]: {} }));
+    setTimesheet(ts => {
+      if (!ts) return ts;
+      return { ...ts, data: { ...ts.data, equipment: [...(ts.data.equipment || []), equipmentToAdd] } };
+    });
+    setEquipmentHours(prev => ({ ...prev, [equipmentToAdd.id]: {} }));
   };
 
-  // --- Save & Submit Logic ---
-
-  const handleSave = async (andSend: boolean = false) => {
-    if (!timesheet) return false;
+  const handleSave = async () => {
+    if (!timesheet) return;
     setIsSubmitting(true);
-    let success = false;
+
     try {
-      const toNumbers = (m: Record<string, string>) => {
+      const toNumbersSimple = (m: Record<string, string>): Record<string, number> => {
         const out: Record<string, number> = {};
-        Object.keys(m).forEach((phase) => {
+        Object.keys(m).forEach(phase => {
           const num = parseFloat(m[phase] || '0');
-          if (!isNaN(num) && num > 0) out[phase] = num;
+          out[phase] = !isNaN(num) ? num : 0;
         });
         return out;
       };
 
-      const toNumbersFromObject = (obj: Record<string, { [key: string]: string }>) => {
+      const processEmployees = (
+        empId: string,
+        phaseHours: { [phase: string]: { [classCode: string]: string } }
+      ): Record<string, Record<string, number>> => {
         const out: Record<string, Record<string, number>> = {};
-        for(const phase in obj) {
-            out[phase] = {};
-            for(const key in obj[phase]) {
-                const num = parseFloat(obj[phase][key] || '0');
-                if (!isNaN(num) && num > 0) out[phase][key] = num;
+        Object.keys(phaseHours).forEach(phase => {
+          out[phase] = {};
+          const classEntries = phaseHours[phase];
+          Object.keys(classEntries).forEach(classCode => {
+            const num = parseFloat(classEntries[classCode] || '0');
+            if (!isNaN(num) && num > 0) {
+              out[phase][classCode] = num;
             }
-        }
-        return out;
-      }
-      
-      const processEquipment = (m: Record<string, { REG?: string; 'S.B'?: string }>) => {
-        const out: Record<string, { REG: number; 'S.B': number }> = {};
-        Object.keys(m).forEach((phase) => {
-          const reg = parseFloat(m[phase]?.REG || '0');
-          const sb = parseFloat(m[phase]?.['S.B'] || '0');
-          if ((reg > 0) || (sb > 0)) out[phase] = { REG: isNaN(reg) ? 0 : reg, 'S.B': isNaN(sb) ? 0 : sb };
+          });
         });
         return out;
       };
+
+      const processEquipment = (m: { [key: string]: { REG?: string; S_B?: string } }): Record<string, { REG: number; S_B: number }> => {
+        const out: Record<string, { REG: number; S_B: number }> = {};
+        Object.keys(m).forEach(phase => {
+          const reg = parseFloat(m[phase]?.REG || '0');
+          const sb = parseFloat(m[phase]?.S_B || '0');
+          out[phase] = { REG: isNaN(reg) ? 0 : reg, S_B: isNaN(sb) ? 0 : sb };
+        });
+        return out;
+      };
+
+      const updatedEmployees = (timesheet.data.employees || []).map(emp => ({
+        ...emp,
+        hours_per_phase: processEmployees(emp.id, employeeHours[emp.id] || {}),
+      }));
+
+      const updatedEquipment = (timesheet.data.equipment || []).map(eq => ({
+        ...eq,
+        hours_per_phase: processEquipment(equipmentHours[eq.id] || {}),
+      }));
+
+      const updatedMaterials = (timesheet.data.materials || []).map(mat => ({
+        ...mat,
+        unit: materialUnits[mat.id],
+        hours_per_phase: toNumbersSimple(materialHours[mat.id] || {}),
+        tickets_per_phase: toNumbersSimple(materialTickets[mat.id] || {}),
+      }));
+
+      const updatedVendors = (timesheet.data.vendors || []).map(ven => ({
+        ...ven,
+        unit: vendorUnits[ven.id],
+        hours_per_phase: toNumbersSimple(vendorHours[ven.id] || {}),
+        tickets_per_phase: toNumbersSimple(vendorTickets[ven.id] || {}),
+      }));
+      const updatedDumpingSites = (timesheet.data.dumping_sites || []).map(site => ({
+                ...site,
+                hours_per_phase: toNumbersSimple(dumpingSiteHours[site.id] || {}),
+                tickets_per_phase: toNumbersSimple(dumpingSiteTickets[site.id] || {}),
+            }));
+
 
       const updatedData = {
         ...timesheet.data,
-        employees: timesheet.data.employees.map((emp) => ({
-          ...emp,
-          hours_per_phase: toNumbersFromObject(employeeHours[emp.id] || {}),
-        })),
-        equipment: timesheet.data.equipment.map((eq) => ({
-          ...eq,
-          hours_per_phase: processEquipment(equipmentHours[eq.id] || {}),
-        })),
-        materials: timesheet.data.materials.map((mat) => ({
-          ...mat,
-          unit: materialUnits[mat.id],
-          hours_per_phase: toNumbers(materialHours[mat.id] || {}),
-          quantities_per_phase: toNumbers(materialQuantities[mat.id] || {}),
-        })),
-        vendors: timesheet.data.vendors.map((ven) => ({
-          ...ven,
-          unit: vendorUnits[ven.id],
-          quantities_per_phase: toNumbers(vendorQuantities[ven.id] || {}),
-        })),
-        total_quantities_per_phase: toNumbers(totalQuantities),
+        employees: updatedEmployees,
+        equipment: updatedEquipment,
+        materials: updatedMaterials,
+        vendors: updatedVendors,
+        dumping_sites: updatedDumpingSites, // NEW
+
+        total_quantities_per_phase: toNumbersSimple(totalQuantities),
         notes,
       };
 
-      await apiClient.put(`/api/timesheets/${timesheet.id}`, { data: updatedData, date: timesheetDate.toISOString() });
-      if (!andSend) Alert.alert('Success', 'Timesheet saved successfully!');
-      success = true;
-    } catch (e) {
-      console.error('Save failed:', e);
-      Alert.alert('Error', 'Failed to save timesheet. Please try again.');
-    } finally {
-      if (!andSend) setIsSubmitting(false);
-    }
-    return success;
-  };
+      const payload = {
+        data: updatedData,
+        date: timesheetDate.toISOString().split('T')[0],
+        status: 'Pending',
+      };
 
-  const handleSubmit = async () => {
-    const saved = await handleSave(true);
-    if (!saved || !timesheet) {
-        setIsSubmitting(false);
-        return;
-    }
-    try {
-      const response = await apiClient.post(`/api/timesheets/${timesheet.id}/send`);
-      setTimesheet(response.data);
-      Alert.alert('Success', 'Timesheet submitted successfully!');
-    } catch (e) {
-      console.error('Send failed:', e);
-      Alert.alert('Error', 'Failed to send timesheet.');
+      await apiClient.put(`/api/timesheets/${timesheet.id}`, payload);
+      Alert.alert('Success', 'Timesheet draft saved successfully!');
+      navigation.goBack();
+    } catch (e: any) {
+      console.error('Save failed', e.response?.data || e);
+      Alert.alert('Error', 'Failed to save timesheet. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // --- Calculation Helpers ---
   const calculateTotalEmployeeHours = (state: EmployeeHourState, entityId: string): number => {
     const entityPhases = state[entityId];
     if (!entityPhases) return 0;
     return Object.values(entityPhases).reduce((phaseTotal, classHours) => {
-        const classTotal = Object.values(classHours).reduce((acc, h) => acc + (parseFloat(h) || 0), 0);
-        return phaseTotal + classTotal;
+      const totalForPhase = Object.values(classHours).reduce((classTotal, hours) => {
+        const val = parseFloat(hours || '0');
+        return classTotal + (isNaN(val) ? 0 : val);
+      }, 0);
+      return phaseTotal + totalForPhase;
     }, 0);
   };
 
-  const calculateEmployeePhaseTotals = (state: EmployeeHourState, phaseCodes: string[]): PhaseTotalState => {
+  const calculateEmployeePhaseTotals = (state: EmployeeHourState, phaseCodes: string[] = []): PhaseTotalState => {
     const totals: PhaseTotalState = {};
-    phaseCodes.forEach(p => totals[p] = 0);
+    phaseCodes.forEach(p => { totals[p] = 0; });
+
     Object.values(state).forEach(perEntity => {
-        phaseCodes.forEach(p => {
-            if (perEntity[p]) {
-                Object.values(perEntity[p]).forEach(h => {
-                    const val = parseFloat(h || '0');
-                    if (!isNaN(val)) totals[p] += val;
-                });
+      phaseCodes.forEach(p => {
+        if (perEntity[p]) {
+          Object.values(perEntity[p]).forEach(hoursStr => {
+            const val = parseFloat(hoursStr || '0');
+            if (!isNaN(val)) {
+              totals[p] += val;
             }
-        });
-    });
-    return totals;
-  };
-  
-  const calculateTotalSimple = (state: SimpleValueState, entityId: string): number => {
-    return Object.values(state[entityId] || {}).reduce((t, v) => t + (parseFloat(v) || 0), 0);
-  };
-  
-  const calculateSimplePhaseTotals = (state: SimpleValueState, phaseCodes: string[]): PhaseTotalState => {
-    const totals: PhaseTotalState = {};
-    phaseCodes.forEach(p => totals[p] = 0);
-    Object.values(state).forEach(perEntity => {
-      phaseCodes.forEach(p => {
-        totals[p] += parseFloat(perEntity[p] || '0') || 0;
+          });
+        }
       });
     });
     return totals;
   };
 
-  const calculateTotalComplex = (state: EquipmentHourState, entityId: string): number => {
-    return Object.values(state[entityId] || {}).reduce((t, v) => {
-      return t + (parseFloat(v?.REG || '0') || 0) + (parseFloat(v?.['S.B'] || '0') || 0);
+  const calculateTotalComplexHours = (hoursState: ComplexHourState, entityId: string): number => {
+    const m = hoursState[entityId];
+    if (!m) return 0;
+    return Object.values(m).reduce((t, v) => {
+      const reg = parseFloat(v?.REG || '0');
+      const sb = parseFloat(v?.S_B || '0');
+      return t + (isNaN(reg) ? 0 : reg) + (isNaN(sb) ? 0 : sb);
     }, 0);
   };
 
-  const calculateComplexPhaseTotals = (state: EquipmentHourState, phaseCodes: string[]): PhaseTotalState => {
+  const calculateComplexPhaseTotals = (hoursState: ComplexHourState, phaseCodes: string[] = []): PhaseTotalState => {
     const totals: PhaseTotalState = {};
-    phaseCodes.forEach(p => totals[p] = 0);
-    Object.values(state).forEach(perEntity => {
+    phaseCodes.forEach(p => { totals[p] = 0; });
+    Object.values(hoursState).forEach(perEntity => {
       phaseCodes.forEach(p => {
-        totals[p] += (parseFloat(perEntity[p]?.REG || '0') || 0) + (parseFloat(perEntity[p]?.['S.B'] || '0') || 0);
+        const reg = parseFloat(perEntity[p]?.REG || '0');
+        const sb = parseFloat(perEntity[p]?.S_B || '0');
+        if (!isNaN(reg)) totals[p] += reg;
+        if (!isNaN(sb)) totals[p] += sb;
       });
     });
     return totals;
   };
 
+  const calculateTotalSimple = (state: SimpleHourState, entityId: string): number => {
+    const m = state[entityId];
+    if (!m) return 0;
+    return Object.values(m).reduce((t, v) => t + parseFloat(v || '0'), 0);
+  };
 
-  // --- Render Functions ---
+  const calculateSimplePhaseTotals = (state: SimpleHourState, phaseCodes: string[] = []): PhaseTotalState => {
+    const totals: PhaseTotalState = {};
+    phaseCodes.forEach(p => { totals[p] = 0; });
+    Object.values(state).forEach(perEntity => {
+      phaseCodes.forEach(p => {
+        const val = parseFloat(perEntity[p] || '0');
+        if (!isNaN(val)) totals[p] += val;
+      });
+    });
+    return totals;
+  };
 
-  const renderEmployeeInputs = () => {
-    const phaseTotals = calculateEmployeePhaseTotals(employeeHours, timesheet?.data.job.phase_codes || []);
-    const employees = timesheet?.data.employees || [];
+ const renderEmployeeInputs = () => {
+    const phaseCodes = timesheet?.data?.job?.phase_codes || [];
+    const phaseTotals = calculateEmployeePhaseTotals(employeeHours, phaseCodes);
+    const employees = timesheet?.data?.employees || [];
 
-    return (
-        <View style={styles.card}>
-            <Text style={styles.cardTitle}>Employees</Text>
-            {employees.map((entity, index) => {
-                const total = calculateTotalEmployeeHours(employeeHours, entity.id);
-                const name = `${entity.first_name} ${entity.middle_name || ''} ${entity.last_name}`.trim();
-                const isLast = index === employees.length - 1;
+    return (
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Employees</Text>
+        {employees.map((entity, index) => {
+          const total = calculateTotalEmployeeHours(employeeHours, entity.id);
+          const name = `${entity.first_name || ''} ${entity.middle_name || ''} ${entity.last_name || ''}`.replace(/\s+/g, ' ').trim();
+          const isLast = index === employees.length - 1;
+          const classCodes = [entity.class_1, entity.class_2].filter(Boolean);
+          // Combine all class codes into a single string for display (e.g., "122 / 133")
+          const classCodeString = classCodes.join(' / '); 
 
-                return (
-                    <View key={entity.id} style={[styles.entityContainer, isLast && styles.lastEntityContainer]}>
-                        <Text style={styles.employeeName}>{entity.id} - {name}</Text>
-                        <View style={styles.controlsRow}>
-                            <View style={{ flex: 1 }} />
-                            <View style={styles.hoursContainer}>
-                                {[entity.class_1, entity.class_2].filter(Boolean).map(className => (
-                                    <View key={className} style={styles.inputWithLabel}>
-                                        <Text style={styles.inputHeader}>{className}</Text>
-                                        <TextInput
-                                            style={styles.input}
-                                            keyboardType="numeric"
-                                            placeholder="0"
-                                            value={employeeHours[entity.id]?.[selectedPhase!]?.[className!] || ''}
-                                            onChangeText={(text) => handleEmployeeHourChange(entity.id, selectedPhase!, className!, text)}
-                                        />
-                                    </View>
-                                ))}
-                                <View style={styles.inputWithLabel}>
-                                    <Text style={styles.inputHeader}>Total</Text>
-                                    <View style={styles.totalBox}>
-                                        <Text style={styles.totalText}>{total.toFixed(1)}</Text>
-                                    </View>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-                );
-            })}
-            <View style={styles.totalsRow}>
-                <Text style={styles.totalsLabel}>Total Hours:</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.totalsContainer}>
-                    {(timesheet?.data.job.phase_codes || []).map((phase) => (
-                        <View key={phase} style={styles.totalPhaseItem}>
-                            <Text style={styles.totalPhaseHeader}>{phase}</Text>
-                            <View style={styles.totalBox}><Text style={styles.totalText}>{phaseTotals[phase]?.toFixed(1) || '0.0'}</Text></View>
-                        </View>
-                    ))}
-                </ScrollView>
-            </View>
+          return (
+            <View key={entity.id} style={[styles.entityContainer, isLast && styles.lastEntityContainer]}>
+              <View style={styles.entityHeader}>
+                <Text style={styles.employeeName}>{name}</Text>
+                <Text style={styles.employeeId}>EMP ID: {entity.id}</Text>
+              </View>
+              
+              {/* START: Row for Hours Inputs and Total */}
+              <View style={styles.controlsRow}>
+                <View style={styles.hoursContainer}>
+                  
+                  {/* Separate, single label for all Class Codes */}
+                  <View style={styles.inputWithLabel}>
+                      <Text style={styles.inputHeader}>Class Codes</Text>
+                      <Text style={styles.classCodeSummary}>{classCodeString}</Text>
+                  </View>
+
+                  {classCodes.map((cc) => (
+                    <View style={styles.inputWithLabel} key={cc}>
+                        {/* RE-ADDING the Hours label above the input box */}
+                        <Text style={styles.inputHeader}>Hours</Text>
+                        
+                      <TextInput
+                        style={styles.input}
+                        keyboardType="numeric"
+                        placeholder="0"
+                        value={employeeHours[entity.id]?.[selectedPhase ?? '']?.[cc as string] ?? ''}
+                        onChangeText={text => selectedPhase && handleEmployeeHourChange(entity.id, selectedPhase, cc as string, text)}
+                      />
+                        {/* We use the code itself as a footer/label, without "Class Code:" text */}
+                      <Text style={styles.employeeClassCodeFooter}>{cc as string}</Text>  
+                    </View>
+                  ))}
+                  
+                  <View style={styles.inputWithLabel}>
+                    <Text style={styles.inputHeader}>Total</Text>
+                    <View style={styles.totalBox}>
+                      <Text style={styles.totalText}>{total.toFixed(1)}</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
+              {/* END: Row for Hours Inputs and Total */}
+              
+            </View>
+          );
+        })}
+        <View style={styles.totalsRow}>
+
+          <Text style={styles.totalsLabel}>Total Hours</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.totalsContainer}>
+            {timesheet?.data.job.phase_codes?.map((phase: string) => (
+              <View key={phase} style={styles.totalPhaseItem}>
+                <Text style={styles.totalPhaseHeader}>{phase}</Text>
+                <View style={styles.totalBox}>
+                  <Text style={styles.totalText}>{phaseTotals[phase]?.toFixed(1) ?? '0.0'}</Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
         </View>
+      </View>
     );
   };
 
   const renderEntityInputs = (
     title: string,
-    entities: any[],
+    entities: any[] = [],
     type: 'equipment' | 'material' | 'vendor'
   ) => {
-    if (entities.length === 0 && type !== 'equipment') return null;
+    if ((entities.length === 0) && type !== 'equipment') return null;
+
     const isEquipment = type === 'equipment';
     const isMaterial = type === 'material';
     const isVendor = type === 'vendor';
 
-    const phaseCodes = timesheet?.data.job.phase_codes || [];
-    const hourTotals = isEquipment ? calculateComplexPhaseTotals(equipmentHours, phaseCodes)
-      : (isMaterial ? calculateSimplePhaseTotals(materialHours, phaseCodes) : {});
-    const quantityTotals = isMaterial ? calculateSimplePhaseTotals(materialQuantities, phaseCodes)
-      : (isVendor ? calculateSimplePhaseTotals(vendorQuantities, phaseCodes) : {});
-    
+    const hoursState = isEquipment ? equipmentHours : (isMaterial ? materialHours : vendorHours);
+    const ticketsState = isMaterial ? materialTickets : vendorTickets;
+
+    const phaseHourTotals = isEquipment
+      ? calculateComplexPhaseTotals(hoursState as ComplexHourState, timesheet?.data.job.phase_codes || [])
+      : calculateSimplePhaseTotals(hoursState as SimpleHourState, timesheet?.data.job.phase_codes || []);
+
+    const getHeader = (fieldType: 'hours' | 'tickets') => {
+      if (isMaterial) {
+        return fieldType === 'hours' ? 'Hrs / Qty' : '# of Tickets';
+      }
+      if (isVendor) {
+        return fieldType === 'hours' ? 'Qty' : '# of Tickets';
+      }
+      return 'Hours';
+    };
+
+    // const calculateLabor = (matId: string, phase: string) => {
+    //   const totalHours = parseFloat(materialHours[matId]?.[phase] || '0');
+    //   const totalQty = parseFloat(materialTickets[matId]?.[phase] || '0');
+    //   if (totalQty > 0) {
+    //     return (totalHours / totalQty).toFixed(2);
+    //   }
+    //   return '0.00';
+    // };
+
     return (
       <View style={styles.card}>
         <Text style={styles.cardTitle}>{title}</Text>
         {entities.map((entity, index) => {
-          const totalHours = isEquipment ? calculateTotalComplex(equipmentHours, entity.id)
-            : (isMaterial ? calculateTotalSimple(materialHours, entity.id) : 0);
-          
+          const totalHours = isEquipment
+            ? calculateTotalComplexHours(hoursState as ComplexHourState, entity.id)
+            : calculateTotalSimple(hoursState as SimpleHourState, entity.id);
           const name = isEquipment ? `${entity.id} - ${entity.name}` : entity.name;
           const isLast = index === entities.length - 1 && !isEquipment;
 
-          const currentPhaseHours = parseFloat(materialHours[entity.id]?.[selectedPhase!] || '0') || 0;
-          const currentPhaseQty = parseFloat(materialQuantities[entity.id]?.[selectedPhase!] || '0') || 0;
-          const laborRate = currentPhaseQty > 0 ? (currentPhaseHours / currentPhaseQty).toFixed(2) : 'N/A';
-          
           return (
             <View key={entity.id} style={[styles.entityContainer, isLast && styles.lastEntityContainer]}>
-              <Text style={styles.inputLabel}>{name}</Text>
-              <View style={[styles.controlsRow, { marginBottom: isMaterial || isVendor ? 10 : 0 }]}>
-                {isEquipment ? (
-                    <>
-                      <View style={{ flex: 1 }} />
-                      <View style={styles.hoursContainer}>
-                          <View style={styles.inputWithLabel}>
-                            <Text style={styles.inputHeader}>REG</Text>
-                            <TextInput style={styles.input} keyboardType="numeric" placeholder="0" value={equipmentHours[entity.id]?.[selectedPhase!]?.REG || ''} onChangeText={(text) => handleEquipmentHourChange(entity.id, selectedPhase!, 'REG', text)} />
-                          </View>
-                          <View style={styles.inputWithLabel}>
-                            <Text style={styles.inputHeader}>S.B</Text>
-                            <TextInput style={styles.input} keyboardType="numeric" placeholder="0" value={equipmentHours[entity.id]?.[selectedPhase!]?.['S.B'] || ''} onChangeText={(text) => handleEquipmentHourChange(entity.id, selectedPhase!, 'S.B', text)} />
-                          </View>
-                          <View style={styles.inputWithLabel}>
-                            <Text style={styles.inputHeader}>Total Hrs</Text>
-                            <View style={styles.totalBox}><Text style={styles.totalText}>{totalHours.toFixed(1)}</Text></View>
-                          </View>
-                      </View>
-                      <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveEquipment(entity.id)}>
-                        <Text style={styles.removeButtonText}>X</Text>
-                      </TouchableOpacity>
-                    </>
-                ) : (
-                  <>
-                    <View style={styles.hoursContainer}>
-                      {isMaterial && (
-                          <View style={styles.inputWithLabel}>
-                              <Text style={styles.inputHeader}>Hours</Text>
-                              <TextInput style={styles.input} keyboardType="numeric" placeholder="0" value={materialHours[entity.id]?.[selectedPhase!] || ''} onChangeText={(text) => handleMaterialVendorChange('material', 'quantity', entity.id, text, selectedPhase!)} />
-                          </View>
-                      )}
-                      <View style={styles.inputWithLabel}>
-                          <Text style={styles.inputHeader}>Quantity</Text>
-                          <TextInput style={styles.input} keyboardType="numeric" placeholder="0" 
-                            value={(isMaterial ? materialQuantities : vendorQuantities)[entity.id]?.[selectedPhase!] || ''}
-                            onChangeText={(text) => handleMaterialVendorChange(type, 'quantity', entity.id, text, selectedPhase!)}
-                          />
-                      </View>
-                      {isMaterial && (
-                        <View style={styles.inputWithLabel}>
-                            <Text style={styles.inputHeader}>Labor</Text>
-                            <View style={styles.totalBox}><Text style={styles.totalText}>{laborRate}</Text></View>
-                        </View>
-                      )}
+              {isEquipment ? (
+                <View style={styles.entityHeader}>
+                  <Text style={styles.employeeName}>{entity.name}</Text>
+                  <Text style={styles.employeeId}>EQP ID: {entity.id}</Text>
+                </View>
+              ) : (
+                <Text style={styles.inputLabel}>{name}</Text>
+              )}
+              
+              <View style={styles.controlsRow}>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.entityInputRow}>
+                  <View style={styles.hoursContainer}>
                     </View>
-                    <View style={{ width: 44, marginLeft: 10 }} />
-                  </>
-                )}
-              </View>
+                    {isEquipment ? (
+                      <>
+                        <View style={styles.inputWithLabel}>
+                          <Text style={styles.inputHeader}>REG</Text>
+                          <TextInput
+                            style={styles.input} keyboardType="numeric" placeholder="0"
+                            value={equipmentHours[entity.id]?.[selectedPhase ?? '']?.REG ?? ''}
+                            onChangeText={text => selectedPhase && handleComplexHourChange(setEquipmentHours, entity.id, selectedPhase, 'REG', text)}
+                          />
+                        </View>
+                        <View style={styles.inputWithLabel}>
+                          <Text style={styles.inputHeader}>S.B</Text>
+                          <TextInput
+                            style={styles.input} keyboardType="numeric" placeholder="0"
+                            value={equipmentHours[entity.id]?.[selectedPhase ?? '']?.S_B ?? ''}
+                            onChangeText={text => selectedPhase && handleComplexHourChange(setEquipmentHours, entity.id, selectedPhase, 'S_B', text)}
+                          />
+                        </View>
+                      </>
+                    ) : (
+                      <>
+                       <View style={styles.inputWithLabel}>
+                          <Text style={styles.inputHeader}>{getHeader('tickets')}</Text>
+                          <TextInput
+                            style={styles.input} keyboardType="number-pad" placeholder="0"
+                            value={(ticketsState as SimpleHourState)[entity.id]?.[selectedPhase ?? ''] ?? ''}
+                            onChangeText={text => selectedPhase && handleSimpleValueChange(type, 'tickets', entity.id, selectedPhase, text)}
+                          />
+                        </View>
 
-              {(isMaterial || isVendor) && (
-                <View style={styles.unitDropdownContainer}>
-                    <Dropdown
-                        style={[styles.dropdown, { flex: 1 }]}
-                        data={isMaterial ? MATERIAL_UNITS : VENDOR_UNITS}
-                        labelField="label"
-                        valueField="value"
-                        placeholder="Select Unit"
-                        value={(isMaterial ? materialUnits : vendorUnits)[entity.id]}
-                        onChange={(item) => handleMaterialVendorChange(type, 'unit', entity.id, item.value)}
-                    />
+                       {/* 2. HRS/QTY (Original first block, now second) */}
+                       <View style={styles.inputWithLabel}>
+                          <Text style={styles.inputHeader}>{getHeader('hours')}</Text>
+                          <TextInput
+                            style={styles.input} keyboardType="numeric" placeholder="0"
+                            value={(hoursState as SimpleHourState)[entity.id]?.[selectedPhase ?? ''] ?? ''}
+                            onChangeText={text => selectedPhase && handleSimpleValueChange(type, 'hours', entity.id, selectedPhase, text)}
+                          />
+                        </View>
+                       {(isMaterial || isVendor) && (
+                          <View style={styles.inputWithLabel}>
+                            <Text style={styles.inputHeader}>Unit</Text> {/* Simple "Unit" header */}
+                            <Dropdown
+                              style={[styles.dropdown, styles.unitDropdown, { width: 80 }]}
+                              data={isMaterial ? MATERIAL_UNITS : WORK_PERFORMED_UNITS}
+                              labelField="label"
+                              valueField="value"
+                              placeholder="C" // Simple placeholder
+                              value={isMaterial ? (materialUnits[entity.id] ?? null) : (vendorUnits[entity.id] ?? null)}
+                              onChange={item => handleUnitChange(type, entity.id, item.value)}
+                              maxHeight={200}
+                            />
+                          </View>
+                        )}
+                      </>
+                    )}
+                    <View style={styles.inputWithLabel}>
+                      <Text style={styles.inputHeader}>Total</Text>
+                      <View style={styles.totalBox}><Text style={styles.totalText}>{totalHours.toFixed(1)}</Text></View>
+                    </View>
+                  </View>
+                  {/* {isMaterial && selectedPhase && (
+                    <View style={styles.laborRateContainer}>
+                      <Text style={styles.laborRateLabel}>Labor Rate (Hrs/Qty): </Text>
+                      <Text style={styles.laborRateValue}>{calculateLabor(entity.id, selectedPhase)}</Text>
+                    </View>
+                  )} */}
                 </View>
-              )}
+                {isEquipment ? (
+                  <TouchableOpacity style={styles.removeButton} onPress={() => handleRemoveEquipment(entity.id)}>
+                    <Text style={styles.removeButtonText}>X</Text>
+                  </TouchableOpacity>
+                ) : <View style={{ width: 44, marginLeft: 10 }} />}
+              </View>
             </View>
           );
         })}
-
-        {(isMaterial || isEquipment) &&
-          <View style={styles.totalsRow}>
-            <Text style={styles.totalsLabel}>Total Hours:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.totalsContainer}>
-              {phaseCodes.map(p => <View key={`${p}-h`} style={styles.totalPhaseItem}><Text style={styles.totalPhaseHeader}>{p}</Text><View style={styles.totalBox}><Text style={styles.totalText}>{hourTotals[p]?.toFixed(1) || '0.0'}</Text></View></View>)}
-            </ScrollView>
-          </View>
-        }
-        {(isMaterial || isVendor) &&
-          <View style={styles.totalsRow}>
-            <Text style={styles.totalsLabel}>Total Qty:</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.totalsContainer}>
-              {phaseCodes.map(p => <View key={`${p}-q`} style={styles.totalPhaseItem}><Text style={styles.totalPhaseHeader}>{p}</Text><View style={styles.totalBox}><Text style={styles.totalText}>{quantityTotals[p]?.toFixed(1) || '0.0'}</Text></View></View>)}
-            </ScrollView>
-          </View>
-        }
-
+        <View style={styles.totalsRow}>
+          {/* <Text style={styles.totalsLabel}>{isMaterial ? 'Truck Hrs/Mat Qty (Phase)' : isVendor ? 'Total Qty (Phase)' : 'Total Hours'}</Text> */}
+          <Text style={styles.totalsLabel}>
+        {isMaterial 
+            ? 'Truck Hrs/Mat Qty\n(Phase)' 
+            : isVendor 
+                ? 'Total Qty\n(Phase)' 
+                : 'Total Hours'}
+    </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.totalsContainer}>
+            {timesheet?.data.job.phase_codes?.map((phase: string) => (
+              <View key={`${phase}-h`} style={styles.totalPhaseItem}>
+                <Text style={styles.totalPhaseHeader}>{phase}</Text>
+                <View style={styles.totalBox}>
+                  <Text style={styles.totalText}>{phaseHourTotals[phase]?.toFixed(1) ?? '0.0'}</Text>
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
         {isEquipment && (
           <View style={styles.addEquipmentRow}>
-            <Dropdown style={[styles.dropdown, { flex: 1 }]}
-              data={availableEquipment.filter(eq => !timesheet?.data.equipment.some(e => e.id === eq.id)).map(eq => ({ label: `${eq.id} - ${eq.name}`, value: eq.id }))}
-              labelField="label" valueField="value" placeholder="Select equipment to add" value={null} onChange={handleAddEquipment}
-              maxHeight={200} search searchPlaceholder="Search..."
+            <Dropdown
+              style={[styles.dropdown, { flex: 1 }]}
+              data={availableEquipment
+                .filter(eq => !(timesheet?.data.equipment || []).some((e: any) => e.id === eq.id))
+                .map(eq => ({ label: `${eq.id} - ${eq.name}`, value: eq.id }))
+              }
+              labelField="label" valueField="value" placeholder="Select equipment to add"
+              value={null} onChange={handleAddEquipment} maxHeight={200} search searchPlaceholder="Search..."
             />
           </View>
         )}
@@ -582,19 +2333,31 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
     );
   };
 
-  if (loading) return <ActivityIndicator size="large" style={styles.centered} />;
-  if (!timesheet) return <View style={styles.centered}><Text>Timesheet not found</Text></View>;
+  if (loading) {
+    return <ActivityIndicator size="large" style={styles.centered} />;
+  }
+  if (!timesheet) {
+    return <View style={styles.centered}><Text>Timesheet not found</Text></View>;
+  }
 
   const { data } = timesheet;
-
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: THEME.SPACING, paddingBottom: 100 }}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.infoCard}>
           <Text style={styles.jobTitle}>{data.job_name}</Text>
-          <Text style={styles.jobCode}>Job Code: {data.job.job_code}</Text>
+          <Text style={styles.jobCode}>Job Code: {data.job?.job_code ?? 'N/A'}</Text>
           <View style={styles.infoGrid}>
-            <View style={styles.infoItem}><Text style={styles.infoLabel}>Date</Text><TouchableOpacity onPress={() => setDatePickerVisible(true)}><Text style={styles.infoValueClickable}>{timesheetDate.toLocaleDateString()}</Text></TouchableOpacity></View>
+            <View style={styles.infoItem}>
+              <Text style={styles.infoLabel}>Date</Text>
+              <TouchableOpacity onPress={() => setDatePickerVisible(true)}>
+                <Text style={styles.infoValueClickable}>{timesheetDate.toLocaleDateString()}</Text>
+              </TouchableOpacity>
+            </View>
             <View style={styles.infoItem}><Text style={styles.infoLabel}>Foreman</Text><Text style={styles.infoValue}>{foremanName}</Text></View>
             <View style={styles.infoItem}><Text style={styles.infoLabel}>Project Engineer</Text><Text style={styles.infoValue}>{data.project_engineer || 'N/A'}</Text></View>
             <View style={styles.infoItem}><Text style={styles.infoLabel}>Day</Text><Text style={styles.infoValue}>{data.time_of_day || 'N/A'}</Text></View>
@@ -605,98 +2368,198 @@ const TimesheetEditScreen = ({ route, navigation }: Props) => {
         </View>
 
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.phaseSelectorContainer}>
-          {data.job.phase_codes.map((phase) => (
-            <TouchableOpacity key={phase} style={[styles.phaseButton, selectedPhase === phase && styles.selectedPhaseButton]} onPress={() => setSelectedPhase(phase)}>
+          {data.job?.phase_codes?.map((phase: string) => (
+            <TouchableOpacity
+              key={phase}
+              style={[styles.phaseButton, selectedPhase === phase && styles.selectedPhaseButton]}
+              onPress={() => setSelectedPhase(phase)}
+            >
               <Text style={[styles.phaseButtonText, selectedPhase === phase && styles.selectedPhaseButtonText]}>{phase}</Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
-        
+
         {selectedPhase && (
           <View>
             {renderEmployeeInputs()}
-            {renderEntityInputs('Equipment', data.equipment, 'equipment')}
-            {renderEntityInputs('Materials and Trucking', data.materials, 'material')}
-            {renderEntityInputs('Work Performed', data.vendors, 'vendor')}
-          </View>
-        )}
-        
-        {selectedPhase && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>Total Quantity</Text>
-            <View style={styles.quantityRow}>
-              <Text style={styles.quantityLabel}>Phase {selectedPhase}:</Text>
-              <TextInput style={[styles.input, styles.quantityInput]} keyboardType="numeric" placeholder="Enter quantity" value={totalQuantities[selectedPhase] || ''} onChangeText={(text) => handleTotalQuantityChange(selectedPhase, text)} />
+            {renderEntityInputs('Equipment', data.equipment || [], 'equipment')}
+            {renderEntityInputs('Materials and Trucking', data.materials || [], 'material')}
+            {renderEntityInputs('Work Performed', data.vendors || [], 'vendor')}
+            {renderEntityInputs("Dumping Sites", data.dumping_sites, 'dumping_site')}
+
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Total Quantity</Text>
+              <View style={styles.quantityRow}>
+                <Text style={styles.quantityLabel}>Phase: {selectedPhase}</Text>
+                <TextInput
+                  style={[styles.input, styles.quantityInput]}
+                  keyboardType="numeric" placeholder="Enter quantity"
+                  value={totalQuantities[selectedPhase] ?? ''}
+                  onChangeText={text => handleTotalQuantityChange(selectedPhase, text)}
+                />
+              </View>
             </View>
           </View>
         )}
 
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Notes</Text>
-          <TextInput style={styles.notesInput} multiline maxLength={300} placeholder="Enter any notes for this timesheet..." value={notes} onChangeText={setNotes} />
-          <Text style={styles.characterCount}>{`${notes.length} / 300`}</Text>
+          <TextInput
+            style={styles.notesInput} multiline maxLength={300}
+            placeholder="Enter any notes for this timesheet..."
+            value={notes} onChangeText={setNotes}
+          />
+          <Text style={styles.characterCount}>{notes.length} / 300</Text>
         </View>
-
       </ScrollView>
 
-      <DatePicker modal open={isDatePickerVisible} date={timesheetDate} mode="date" onConfirm={(d) => { setDatePickerVisible(false); setTimesheetDate(d); }} onCancel={() => setDatePickerVisible(false)} />
+      {/* <DatePicker modal open={isDatePickerVisible} date={timesheetDate} mode="date"
+        onConfirm={d => { setDatePickerVisible(false); setTimesheetDate(d); }}
+        onCancel={() => { setDatePickerVisible(false); }}
+      /> */}
+// Inside your main TimesheetEditScreen component
+<DatePicker modal open={isDatePickerVisible} date={timesheetDate} mode="date"
+    onConfirm={d => { 
+        setDatePickerVisible(false); 
+        setTimesheetDate(d); 
+        
+        const newDateString = d.toISOString().split('T')[0];
 
+        setTimesheet(prev => {
+            // 🌟 CRITICAL FIX: Check if the previous state is null 🌟
+            if (prev === null) {
+                return null; // Or return a default empty Timesheet object
+            }
+            
+            // If not null, safely create and return the updated Timesheet object
+            return {
+                ...prev,
+                date: newDateString,
+                data: {
+                    ...prev.data,
+                    date: newDateString, 
+                }
+            };
+        });
+    }}
+    onCancel={() => { setDatePickerVisible(false); }}
+/>
       <View style={styles.footer}>
-        <TouchableOpacity style={[styles.button, { backgroundColor: THEME.primary, marginRight: THEME.SPACING/2 }]} onPress={() => handleSave()} disabled={isSubmitting}><Text style={styles.buttonText}>Save Draft</Text></TouchableOpacity>
-        <TouchableOpacity style={[styles.button, { backgroundColor: THEME.success, marginLeft: THEME.SPACING/2 }]} onPress={handleSubmit} disabled={isSubmitting}><Text style={styles.buttonText}>{isSubmitting ? 'Submitting...' : 'Submit Timesheet'}</Text></TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.submitButton, { backgroundColor: isSubmitting ? THEME.textSecondary : THEME.primary }]}
+          onPress={handleSave}
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? <ActivityIndicator color="#FFF" /> : <Text style={styles.submitButtonText}>Save Draft</Text>}
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: THEME.background },
-    scrollContent: { padding: THEME.SPACING, paddingBottom: 100 },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: THEME.background },
-    infoCard: { padding: THEME.SPACING, backgroundColor: THEME.card, borderRadius: 14, marginBottom: THEME.SPACING, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 3 },
-    jobTitle: { fontSize: 24, fontWeight: 'bold', color: THEME.text },
-    jobCode: { fontSize: 16, color: THEME.textSecondary, marginTop: 4 },
-    infoGrid: { marginTop: THEME.SPACING, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-    infoItem: { width: '48%', marginBottom: 8 },
-    infoLabel: { fontSize: 14, color: THEME.textSecondary, marginBottom: 2 },
-    infoValue: { fontSize: 16, fontWeight: '500', color: THEME.text },
-    infoValueClickable: { fontSize: 16, fontWeight: '500', color: THEME.primary },
-    phaseSelectorContainer: { marginVertical: THEME.SPACING / 2 },
-    phaseButton: { paddingHorizontal: 20, paddingVertical: 10, marginRight: 10, borderRadius: 20, backgroundColor: THEME.card, borderWidth: 1, borderColor: THEME.border },
-    selectedPhaseButton: { backgroundColor: THEME.primary, borderColor: THEME.primary, shadowColor: THEME.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 6 },
-    phaseButtonText: { color: THEME.text, fontWeight: '600', fontSize: 16 },
-    selectedPhaseButtonText: { color: '#FFF' },
-    card: { backgroundColor: THEME.card, borderRadius: 14, padding: THEME.SPACING, marginBottom: THEME.SPACING, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 },
-    cardTitle: { fontSize: 20, fontWeight: 'bold', color: THEME.text, marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: THEME.border },
-    entityContainer: { paddingVertical: THEME.SPACING, borderBottomWidth: 1, borderBottomColor: THEME.border },
-    lastEntityContainer: { borderBottomWidth: 0, paddingBottom: 0 },
-    inputLabel: { fontSize: 18, color: THEME.text, marginBottom: 12, fontWeight: '600' },
-    employeeName: { fontSize: 16, color: THEME.text, marginBottom: 12, fontWeight: '600' },
-    controlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    hoursContainer: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-end', flexWrap: 'wrap' },
-    inputWithLabel: { alignItems: 'center', marginLeft: 8 },
-    inputHeader: { fontSize: 13, color: THEME.textSecondary, marginBottom: 4, fontWeight: '500' },
-    input: { borderWidth: 1.5, borderColor: THEME.border, borderRadius: 10, paddingHorizontal: 10, height: 48, width: 65, textAlign: 'center', fontSize: 16, fontWeight: '500', color: THEME.text, backgroundColor: THEME.lightGray },
-    totalBox: { backgroundColor: THEME.background, borderRadius: 10, height: 48, width: 70, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: THEME.border },
-    totalText: { fontSize: 16, fontWeight: 'bold', color: THEME.text },
-    dropdown: { height: 48, borderColor: THEME.border, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, backgroundColor: THEME.lightGray },
-    unitDropdownContainer: { marginTop: 10 },
-    removeButton: { marginLeft: 10, width: 48, height: 48, borderRadius: 10, justifyContent: 'center', alignItems: 'center', backgroundColor: `${THEME.danger}1A` },
-    removeButtonText: { color: THEME.danger, fontWeight: 'bold', fontSize: 20 },
-    addEquipmentRow: { marginTop: THEME.SPACING, borderTopWidth: 1, borderTopColor: THEME.border, paddingTop: THEME.SPACING },
-    quantityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    quantityLabel: { fontSize: 16, fontWeight: '500', color: THEME.text },
-    quantityInput: { width: 150 },
-    totalsRow: { flexDirection: 'row', alignItems: 'center', marginTop: THEME.SPACING, paddingTop: THEME.SPACING, borderTopWidth: 1, borderTopColor: THEME.border },
-    totalsLabel: { fontSize: 16, fontWeight: 'bold', color: THEME.text, marginRight: 10 },
-    totalsContainer: { flexDirection: 'row' },
-    totalPhaseItem: { alignItems: 'center', marginHorizontal: 4 },
-    totalPhaseHeader: { fontSize: 12, color: THEME.textSecondary, marginBottom: 4 },
-    footer: { padding: THEME.SPACING, backgroundColor: THEME.card, borderTopWidth: 1, borderTopColor: THEME.border, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 5, flexDirection: 'row', justifyContent: 'space-between' },
-    button: { padding: THEME.SPACING, borderRadius: 14, alignItems: 'center', justifyContent: 'center', height: 56, flex: 1 },
-    buttonText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
-    notesInput: { borderWidth: 1.5, borderColor: THEME.border, borderRadius: 10, padding: 12, height: 100, textAlignVertical: 'top', fontSize: 16, color: THEME.text, backgroundColor: THEME.lightGray },
-    characterCount: { fontSize: 12, color: THEME.textSecondary, textAlign: 'right', marginTop: 4 },
+  classCodeSummary: {
+        fontSize: 14,
+        fontWeight: '600',
+        paddingVertical: 5, // Gives space to visually align with the input boxes
+        // Ensure this box has roughly the same height as a text input
+        height: 40, // Match the input box height (approximate)
+        textAlignVertical: 'center', // Vertically centers the text (Android)
+    },
+    
+    // Style for the code under the input box (only the number)
+    employeeClassCodeFooter: {
+        fontSize: 10,
+        color: '#333', // Darker to stand out slightly
+        textAlign: 'center',
+        marginTop: 4, 
+        marginBottom: 0,
+    },
+  // employeeClassCodeFooter: {
+  //       fontSize: 10,
+  //       color: 'gray', // Use a muted color
+  //       textAlign: 'center',
+  //       marginTop: 4, // Add a little space below the input box
+  //       marginBottom: 0,
+  //   },
+  safeArea: { flex: 1, backgroundColor: THEME.background },
+  centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: THEME.background },
+  infoCard: { padding: THEME.SPACING, backgroundColor: THEME.card, borderRadius: 14, marginBottom: THEME.SPACING, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 3, },
+  jobTitle: { fontSize: 24, fontWeight: 'bold', color: THEME.text },
+  jobCode: { fontSize: 16, color: THEME.textSecondary, marginTop: 4 },
+  infoGrid: { marginTop: THEME.SPACING, flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  infoItem: { width: '48%', marginBottom: 8 },
+  infoLabel: { fontSize: 14, color: THEME.textSecondary, marginBottom: 2 },
+  infoValue: { fontSize: 16, fontWeight: '500', color: THEME.text },
+  infoValueClickable: { fontSize: 16, fontWeight: '500', color: THEME.primary },
+  phaseSelectorContainer: { marginVertical: THEME.SPACING / 2 },
+  phaseButton: { paddingHorizontal: 20, paddingVertical: 10, marginRight: 10, borderRadius: 20, backgroundColor: THEME.card, borderWidth: 1, borderColor: THEME.border, },
+  selectedPhaseButton: { backgroundColor: THEME.primary, borderColor: THEME.primary, shadowColor: THEME.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 5, elevation: 6, },
+  phaseButtonText: { color: THEME.text, fontWeight: '600', fontSize: 16 },
+  selectedPhaseButtonText: { color: '#FFF' },
+  card: { backgroundColor: THEME.card, borderRadius: 14, padding: THEME.SPACING, marginBottom: THEME.SPACING, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2, },
+  cardTitle: { fontSize: 20, fontWeight: 'bold', color: THEME.text, marginBottom: 8, paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: THEME.border, },
+  entityContainer: { paddingVertical: THEME.SPACING, borderBottomWidth: 1, borderBottomColor: THEME.border },
+  lastEntityContainer: { borderBottomWidth: 0, paddingBottom: 0 },
+  entityHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  // employeeName: { fontSize: 16, color: THEME.text, fontWeight: '600' },
+  employeeName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    flexShrink: 1, // Crucial: Allows the name to shrink and wrap
+    marginRight: 10, // Add a bit of space between name and ID
+},
+  // employeeId: { fontSize: 14, color: '#1C1C1E', fontWeight: 'bold' },
+  employeeId: {
+    fontSize: 14,
+    color: '#666',
+    flexShrink: 0, // Prevents the ID from shrinking/wrapping
+    marginLeft: 'auto', // Pushes it to the right
+    fontWeight: 'bold'
+},
+  inputLabel: { fontSize: 18, color: THEME.text, marginBottom: 12, fontWeight: '600' },
+  controlsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  // hoursContainer: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'flex-start', flex: 1, flexWrap: 'wrap' },
+  hoursContainer: { 
+    flexDirection: 'row', 
+    alignItems: 'flex-start', // <-- CHANGE THIS to align items from the top
+    justifyContent: 'flex-start', 
+    flex: 1, 
+    flexWrap: 'wrap' 
+},
+entityInputRow: {
+        flexDirection: 'row',
+        // Crucial change: align children to the bottom line
+        alignItems: 'flex-end', 
+        // You might need a slight marginBottom if the row touches the next entity
+        // marginBottom: 10, 
+    },
+  inputWithLabel: { alignItems: 'center', marginLeft: 10 },
+  inputHeader: { fontSize: 13, color: THEME.textSecondary, marginBottom: 4, fontWeight: '500' },
+  input: { borderWidth: 1.5, borderColor: THEME.border, borderRadius: 10, paddingHorizontal: 10, height: 48, width: 65, textAlign: 'center', fontSize: 16, fontWeight: '500', color: THEME.text, backgroundColor: THEME.lightGray, },
+  totalBox: { backgroundColor: THEME.background, borderRadius: 10, height: 48, width: 70, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: THEME.border, },
+  totalText: { fontSize: 16, fontWeight: 'bold', color: THEME.text },
+  dropdown: { height: 48, borderColor: THEME.border, borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 12, backgroundColor: THEME.lightGray, },
+  unitDropdown: { width: 180, marginLeft: 10 },
+  removeButton: { marginLeft: 10, width: 48, height: 48, borderRadius: 10, justifyContent: 'center', alignItems: 'center', backgroundColor: `${THEME.danger}1A`, },
+  removeButtonText: { color: THEME.danger, fontWeight: 'bold', fontSize: 20, },
+  addEquipmentRow: { marginTop: THEME.SPACING, borderTopWidth: 1, borderTopColor: THEME.border, paddingTop: THEME.SPACING },
+  quantityRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  quantityLabel: { fontSize: 16, fontWeight: '500', color: THEME.text },
+  quantityInput: { width: 150 },
+  totalsRow: { flexDirection: 'row', alignItems: 'center', marginTop: THEME.SPACING, paddingTop: THEME.SPACING, borderTopWidth: 1, borderTopColor: THEME.border, },
+  totalsLabel: { fontSize: 16, fontWeight: 'bold', color: THEME.text, marginRight: 10 },
+  totalsContainer: { flexDirection: 'row' },
+  totalPhaseItem: { alignItems: 'center', marginHorizontal: 4 },
+  totalPhaseHeader: { fontSize: 12, color: THEME.textSecondary, marginBottom: 4 },
+  footer: { padding: THEME.SPACING, backgroundColor: THEME.card, borderTopWidth: 1, borderTopColor: THEME.border, shadowColor: '#000', shadowOffset: { width: 0, height: -2 }, shadowOpacity: 0.05, shadowRadius: 5, elevation: 5, },
+  submitButton: { padding: THEME.SPACING, borderRadius: 14, alignItems: 'center', justifyContent: 'center', height: 56, },
+  submitButtonText: { color: '#FFF', fontWeight: 'bold', fontSize: 18 },
+  notesInput: { borderWidth: 1.5, borderColor: THEME.border, borderRadius: 10, padding: 12, height: 100, textAlignVertical: 'top', fontSize: 16, color: THEME.text, backgroundColor: THEME.lightGray, },
+  characterCount: { fontSize: 12, color: THEME.textSecondary, textAlign: 'right', marginTop: 4 },
+  laborRateContainer: { marginTop: 10, flexDirection: 'row', alignItems: 'center' },
+  laborRateLabel: { fontSize: 14, color: THEME.textSecondary },
+  laborRateValue: { fontSize: 14, fontWeight: 'bold', color: THEME.text },
 });
 
 export default TimesheetEditScreen;

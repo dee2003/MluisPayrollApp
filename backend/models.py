@@ -112,6 +112,7 @@ class Vendor(Base):
     name = Column(String, nullable=False)
     unit = Column(String, nullable=False)
     status = Column(String, nullable=False)
+from sqlalchemy import Column, Integer, String, Text, ForeignKey
 
 
 class CrewMapping(Base):
@@ -123,6 +124,7 @@ class CrewMapping(Base):
     equipment_ids = Column(String)
     material_ids = Column(String)
     vendor_ids = Column(String)
+    dumping_site_ids = Column(Text) 
 
     foreman = relationship("User", back_populates="crew_mappings")
 
@@ -260,3 +262,11 @@ class ProjectEngineerSubmission(BaseModel):
     """Groups all foreman submissions under a single date."""
     date: str
     submissions: List[DailySubmissionDetails]
+from sqlalchemy import Column, String, VARCHAR
+
+class DumpingSite(Base):
+    __tablename__ = "dumping_sites"
+
+    id = Column(VARCHAR(255), primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    status = Column(String, nullable=False, default="Active")

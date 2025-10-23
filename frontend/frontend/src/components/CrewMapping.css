@@ -366,7 +366,13 @@ body {
     margin: 0 0 5px 0;
 }
 
+.data-table td, 
+.data-table th {
+  text-align: center;
+  vertical-align: middle;
+}
 
+/* --- Center the table title --- */
 
 /* Hover Effect - Made softer */
 
@@ -402,12 +408,13 @@ body {
 
 /* --- Table Header (<th>) --- */
 .data-table th {
-    white-space: nowrap; /* Keeps header titles on one line */
-    text-align: left;
+    white-space: nowrap;
+    text-align: center; /* ← change from left to center */
     font-weight: 600;
     color: var(--clean-primary);
     background-color: var(--clean-bg);
 }
+
 
 /* --- General Table Data Cell (<td>) --- */
 .data-table td {
@@ -425,22 +432,27 @@ body {
 }
 
 /* --- Actions Column Styling --- */
+/* --- Actions Column Styling (Centered) --- */
 .data-table td:last-child {
     white-space: normal;
     text-align: center;
     display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 8px;
+    justify-content: center;  /* Centers horizontally */
+    align-items: center;      /* Centers vertically */
+    gap: 8px;                 /* Space between buttons */
     min-width: 150px;
 }
 
+
 /* Responsive Adjustments for Small Screens */
 @media (max-width: 600px) {
-    .data-table th,
-    .data-table td {
-        padding: 8px 10px;
-    }
+  .data-table td:last-child {
+    flex-wrap: wrap;
+    justify-content: center;  /* still centered */
+    gap: 6px;
+  }
+
+
 
     /* On mobile, allow the ID column to be a bit more flexible */
     .data-table th:first-child,
@@ -455,4 +467,90 @@ body {
         justify-content: flex-start;
         gap: 5px;
     }
+}
+
+/* ======== Button Styles ======== */
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  border: none;
+}
+
+/* Edit Button — Blue */
+.btn-edit {
+  background-color: #007bff;
+  color: white;
+  border: 1px solid #007bff;
+}
+
+.btn-edit:hover {
+  background-color: #0056b3;
+  border-color: #004a99;
+}
+
+/* Delete Button — Red */
+.btn-delete {
+  background-color: #dc3545;
+  color: white;
+  border: 1px solid #dc3545;
+}
+
+.btn-delete:hover {
+  background-color: #b02a37;
+  border-color: #a52834;
+}
+.btn-view {
+  background-color: #28a745; /* Green */
+  color: white;
+  border: 1px solid #28a745;
+}
+
+.btn-view:hover {
+  background-color: #218838; /* Darker green on hover */
+  border-color: #1e7e34;
+}
+.sidebar-nav .icon {
+    margin-right: 8px;
+    font-size: 1.2rem;
+}
+
+.admin-sidebar.collapsed .icon {
+    margin-right: 0;
+}
+/* --- Replace the old .form-error-top style with this in CrewMapping.css --- */
+
+/* Enhanced styles for the top-level form error message */
+.form-error-top {
+  position: sticky; /* Makes the error message stick to the top */
+  top: 0;
+  background-color: #f8d7da;
+  color: #721c24;
+  border-bottom: 2px solid #dc3545; /* Stronger bottom border */
+  border-radius: 4px;
+  padding: 12px 15px;
+  margin: -16px -24px 16px -24px; /* Spans the full width of the modal body */
+  font-weight: bold; /* Makes text bolder */
+  font-size: 1rem;   /* Slightly larger font */
+  text-align: center;
+  z-index: 10; /* Ensures it stays above other form content */
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Adds a subtle shadow */
+  
+  /* Animation for appearing */
+  animation: slideDownFadeIn 0.3s ease-in-out;
+}
+
+/* Defines the animation */
+@keyframes slideDownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

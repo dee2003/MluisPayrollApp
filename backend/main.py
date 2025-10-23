@@ -164,18 +164,20 @@ def get_crew_mapping_by_id(crew_id: int, db: Session = Depends(database.get_db))
 
 @crew_mapping_router.post("/", response_model=schemas.CrewMapping, status_code=201)
 def create_crew_mapping(crew: schemas.CrewMappingCreate, db: Session = Depends(database.get_db)):
-    conflicts = find_employee_conflicts(db, crew.employee_ids)
-    if conflicts:
-        raise HTTPException(status_code=409, detail=f"Employee(s) with ID(s) {', '.join(conflicts)} are already assigned.")
+    # Remove conflict check entirely
     db_crew = models.CrewMapping(
-        foreman_id=crew.foreman_id, employee_ids=list_to_csv(crew.employee_ids),
-        equipment_ids=list_to_csv(crew.equipment_ids), material_ids=list_to_csv(crew.material_ids or []),
-        vendor_ids=list_to_csv(crew.vendor_ids or [])
+        foreman_id=crew.foreman_id,
+        employee_ids=list_to_csv(crew.employee_ids),
+        equipment_ids=list_to_csv(crew.equipment_ids),
+        material_ids=list_to_csv(crew.material_ids or []),
+        vendor_ids=list_to_csv(crew.vendor_ids or []),
+        dumping_site_ids=list_to_csv(crew.dumping_site_ids or [])
     )
     db.add(db_crew)
     db.commit()
     db.refresh(db_crew)
     return db_crew
+
 
 
 @crew_mapping_router.put("/{crew_id}", response_model=schemas.CrewMapping)
@@ -188,6 +190,8 @@ def update_crew_mapping(crew_id: int, crew: schemas.CrewMappingCreate, db: Sessi
         raise HTTPException(status_code=409, detail=f"Employee(s) with ID(s) {', '.join(conflicts)} are already assigned.")
     db_crew.foreman_id, db_crew.employee_ids, db_crew.equipment_ids = crew.foreman_id, list_to_csv(crew.employee_ids), list_to_csv(crew.equipment_ids)
     db_crew.material_ids, db_crew.vendor_ids = list_to_csv(crew.material_ids or []), list_to_csv(crew.vendor_ids or [])
+    db_crew.dumping_site_ids = list_to_csv(crew.dumping_site_ids or [])
+
     db.commit()
     db.refresh(db_crew)
     return db_crew
@@ -210,6 +214,8 @@ crud_models = [
     {"model": models.Equipment, "schemas": (schemas.EquipmentCreate, schemas.Equipment)},
     {"model": models.Vendor, "schemas": (schemas.VendorCreate, schemas.Vendor)},
     {"model": models.Material, "schemas": (schemas.MaterialCreate, schemas.Material)},
+    {"model": models.DumpingSite, "schemas": (schemas.DumpingSiteCreate, schemas.DumpingSite)}, 
+
 ]
 for item in crud_models:
     model, (create_schema, response_schema) = item["model"], item["schemas"]
@@ -243,6 +249,8 @@ def get_all_data(db: Session = Depends(database.get_db)):
         "job_phases": db.query(models.JobPhase).all(),
         "materials": db.query(models.Material).all(), 
         "vendors": db.query(models.Vendor).all(),
+        "dumping_sites": db.query(models.DumpingSite).all(),
+
     }
 # backend/main.py or backend/auth.py
 from fastapi import APIRouter, Depends, HTTPException, status

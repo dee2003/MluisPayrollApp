@@ -151,3 +151,15 @@ p[style] {
     font-size: 0.8em;
     color: #7f8c8d;
 }
+.form-group select {
+  appearance: none;             /* Removes default browser style */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background: white url("data:image/svg+xml;utf8,<svg fill='black' height='16' width='16' xmlns='http://www.w3.org/2000/svg'><path d='M4 6l4 4 4-4z'/></svg>") no-repeat right 10px center;
+  background-size: 16px;
+  padding-right: 30px;          /* Adds space for the arrow */
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  height: 38px;
+  font-size: 14px;
+}

@@ -37,6 +37,13 @@ export interface MaterialWorkLog {
     unit?: string; // <-- ADD THIS
 
 }
+export interface DumpingSite { // You may need to create this type
+    id: string;
+    name: string;
+    status: string;
+    hours_per_phase?: { [phase: string]: number };
+    tickets_per_phase?: { [phase: string]: number };
+}
 
 export interface VendorWorkLog {
   id: string;
@@ -68,6 +75,8 @@ export interface TimesheetData {
   materials: MaterialWorkLog[];
   vendors: VendorWorkLog[];
   notes?: string;
+    dumping_sites?: DumpingSite[]; // NEW: Add this line
+
   total_quantities_per_phase?: Record<string, string | number>;
 }
 

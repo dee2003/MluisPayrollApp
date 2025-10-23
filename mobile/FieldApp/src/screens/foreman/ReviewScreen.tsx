@@ -21,7 +21,7 @@ import { Timesheet } from '../../types';
 const { width } = Dimensions.get('window');
 const THUMBNAIL_HEIGHT = 150;
 
-const API_BASE_URL = 'https://491183e87d26.ngrok-free.app';
+const API_BASE_URL = 'https://2d4229bd1d65.ngrok-free.app';
 
 const THEME = {
   primary: '#007AFF',

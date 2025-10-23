@@ -127,7 +127,21 @@ class JobPhaseUpdate(BaseModel):
 class JobPhase(JobPhaseBase):
     id: int
     model_config = model_config
+class DumpingSiteBase(BaseModel):
+    id: str
+    name: str
+    status: str = "Active"
 
+class DumpingSiteCreate(DumpingSiteBase):
+    pass
+
+class DumpingSiteUpdate(BaseModel):
+    name: Optional[str] = None
+    status: Optional[str] = None
+
+class DumpingSite(DumpingSiteBase):
+    class Config:
+        orm_mode = True
 # ===============================
 #         CREW MAPPING
 # ===============================
@@ -137,6 +151,7 @@ class CrewMappingCreate(BaseModel):
     equipment_ids: List[str]
     material_ids: Optional[List[int]] = []
     vendor_ids: Optional[List[int]] = []
+    dumping_site_ids: Optional[List[int]] = []  # ✅ ADD THIS LINE
 
 class CrewMapping(BaseModel):
     id: int
@@ -145,31 +160,50 @@ class CrewMapping(BaseModel):
     equipment_ids: List[str]
     material_ids: List[int]
     vendor_ids: List[int]
+    dumping_site_ids: List[str] = []
+
     model_config = model_config
 
-    @field_validator('employee_ids', 'equipment_ids', 'material_ids', 'vendor_ids', mode='before')
-    @classmethod
-    def split_string_to_list(cls, v: Any, info) -> List[Any]:
-        if not isinstance(v, str):
-            return v
-        is_int_field = info.field_name in ['material_ids', 'vendor_ids']
-        items = []
-        for item in v.split(','):
-            item = item.strip()
-            if not item:
-                continue
-            try:
-                items.append(int(item) if is_int_field else item)
-            except (ValueError, TypeError):
-                continue
-        return items
 
+    @field_validator(
+        'employee_ids', 'equipment_ids', 'material_ids', 'vendor_ids', 'dumping_site_ids',
+        mode='before'
+    )
+    @classmethod
+    def ensure_list(cls, v, info) -> List[Any]:
+        if v is None:
+            return []
+        int_fields = ['material_ids', 'vendor_ids']
+        is_int_field = info.field_name in int_fields
+
+        # If already a list, cast items
+        if isinstance(v, list):
+            return [int(item) if is_int_field else str(item) for item in v]
+
+        # If string (CSV), split into list
+        if isinstance(v, str):
+            items = []
+            for item in v.split(','):
+                item = item.strip()
+                if not item:
+                    continue
+                try:
+                    items.append(int(item) if is_int_field else str(item))
+                except (ValueError, TypeError):
+                    continue
+            return items
+
+        # If single int or str, wrap in list
+        return [int(v)] if is_int_field else [str(v)]
+        
 class CrewMappingResponse(BaseModel):
     foreman_id: Optional[int] = None
     employees: List[Employee]
     equipment: List[Equipment]
     materials: List[Material]
     vendors: List[Vendor]
+    dumping_sites: List[DumpingSite] = []
+
     model_config = model_config
 
 # ===============================

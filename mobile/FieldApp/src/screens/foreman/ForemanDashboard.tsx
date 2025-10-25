@@ -18,7 +18,7 @@ import DocumentScanner from 'react-native-document-scanner-plugin';
 import RNFS from 'react-native-fs';
 import Icon from 'react-native-vector-icons/Feather';
 
-const API_BASE_URL = 'https://2d4229bd1d65.ngrok-free.app';
+const API_BASE_URL = 'https://541ce71740ad.ngrok-free.app';
 
 const theme = {
   colors: {

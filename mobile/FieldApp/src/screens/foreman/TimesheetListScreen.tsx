@@ -1,90 +1,228 @@
 // /src/screens/foreman/TimesheetListScreen.tsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, SafeAreaView } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import apiClient from '../../api/apiClient';
 import { Timesheet } from '../../types';
-import { useAuth } from '../../context/AuthContext'; // Import useAuth
+import { useAuth } from '../../context/AuthContext';
 import { ForemanStackParamList } from '../../navigation/AppNavigator';
 
 type ListNavigationProp = StackNavigationProp<ForemanStackParamList, 'TimesheetList'>;
 
-const TimesheetListScreen = () => {
-  const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
-  const [loading, setLoading] = useState(true);
-  const navigation = useNavigation<ListNavigationProp>();
-  const isFocused = useIsFocused();
-  const { user } = useAuth(); // Get the logged-in user
-
-  const fetchTimesheets = async () => {
-    if (!user) return; // Don't fetch if there's no user
-
-    setLoading(true);
-    try {
-      // --- FIX: Call the correct endpoint to get timesheets for this foreman ---
-      const response = await apiClient.get<Timesheet[]>(`/api/timesheets/by-foreman/${user.id}`);
-      setTimesheets(response.data);
-    } catch (error) {
-      console.error('Failed to fetch timesheets:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (isFocused && user) {
-      fetchTimesheets();
-    }
-  }, [isFocused, user]); // Refetch if the user changes or screen is focused
-
-  // ... (The rest of the component remains the same)
-  if (loading) return <ActivityIndicator size="large" style={{ flex: 1 }} />;
-
-  const renderItem = ({ item }: { item: Timesheet }) => (
-    <TouchableOpacity 
-      style={styles.card}
-      onPress={() => navigation.navigate('TimesheetEdit', { timesheetId: item.id })}
-    >
-      <View style={styles.cardHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.jobName}>{item.data.job_name}</Text>
-          <Text style={styles.date}>{new Date(item.date).toLocaleDateString()}</Text>
-        </View>
-        
-      </View>
-    </TouchableOpacity>
-  );
-
-  return (
-    <FlatList
-      data={timesheets}
-      renderItem={renderItem}
-      keyExtractor={(item) => item.id.toString()}
-      contentContainerStyle={styles.container}
-      ListHeaderComponent={<Text style={styles.title}>All My Timesheets</Text>}
-      ListEmptyComponent={<Text style={styles.emptyText}>No timesheets found for you.</Text>}
-      refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchTimesheets} />}
-    />
-  );
+// Adapted Theme and Colors from ForemanDashboard
+const THEME = {
+    colors: {
+        primary: '#4A5C4D', // Primary action color (dark green)
+        backgroundLight: '#F8F7F2', // Light background
+        contentLight: '#3D3D3D', // Primary text content
+        subtleLight: '#797979', // Secondary text content
+        cardLight: '#FFFFFF', // Card/container background
+        brandStone: '#8E8E8E', // Subtle brand color
+        danger: '#e74c3c',      // Rejected/Error
+        pending: '#f39c12',     // Pending/Draft
+        submitted: '#3498db',   // Submitted
+        approved: '#2ecc71',    // Approved/Success
+        border: '#F0F0F0',
+    },
+    fontFamily: { display: 'System' }, // Using System as a fallback for Manrope
+    borderRadius: { lg: 16, xl: 24, full: 9999 },
 };
 
-// ... (Styles remain the same)
+
+const TimesheetListScreen = () => {
+    const [timesheets, setTimesheets] = useState<Timesheet[]>([]);
+    const [loading, setLoading] = useState(true);
+    const navigation = useNavigation<ListNavigationProp>();
+    const isFocused = useIsFocused();
+    const { user } = useAuth();
+
+    const fetchTimesheets = async () => {
+        if (!user) {
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+        try {
+            const response = await apiClient.get<Timesheet[]>(`/api/timesheets/by-foreman/${user.id}`);
+            // Assuming Timesheet object has a `status` property for the badge logic
+            setTimesheets(response.data); 
+        } catch (error) {
+            console.error('Failed to fetch timesheets:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (isFocused && user) {
+            fetchTimesheets();
+        }
+    }, [isFocused, user]);
+
+    const getStatusStyle = (status: string) => {
+        switch (status.toLowerCase()) {
+            case 'approved':
+                return { badge: { backgroundColor: THEME.colors.approved }, text: { color: THEME.colors.cardLight } };
+            case 'submitted':
+                return { badge: { backgroundColor: THEME.colors.submitted }, text: { color: THEME.colors.cardLight } };
+            case 'rejected':
+                return { badge: { backgroundColor: THEME.colors.danger }, text: { color: THEME.colors.cardLight } };
+            case 'draft':
+            default:
+                return { badge: { backgroundColor: THEME.colors.pending }, text: { color: THEME.colors.contentLight } };
+        }
+    };
+
+    if (loading && timesheets.length === 0) {
+        return <ActivityIndicator size="large" color={THEME.colors.primary} style={styles.loadingIndicator} />;
+    }
+
+    const renderItem = ({ item }: { item: Timesheet }) => {
+        // Fallback status if not present in your Timesheet type, assuming 'Draft' if no status is available.
+        const status = item.status || 'Draft';
+        const { badge, text } = getStatusStyle(status);
+
+        return (
+            <TouchableOpacity 
+                style={styles.card}
+                onPress={() => navigation.navigate('TimesheetEdit', { timesheetId: item.id })}
+                activeOpacity={0.8}
+            >
+                <View style={styles.cardHeader}>
+                    <View style={{ flex: 1 }}>
+                        {/* Assuming job_name is available in item.data */}
+                        <Text style={styles.jobName} numberOfLines={1}>{item.data?.job_name || 'No Job Name'}</Text>
+                        <Text style={styles.date}>Date: {new Date(item.date).toLocaleDateString()}</Text>
+                    </View>
+                    
+                    <View style={[styles.statusBadge, badge]}>
+                        <Text style={[styles.statusText, text]}>{status.toUpperCase()}</Text>
+                    </View>
+                </View>
+            </TouchableOpacity>
+        );
+    };
+
+    return (
+        <SafeAreaView style={styles.safeArea}>
+            {/* <View style={styles.header}>
+                <Text style={styles.title}>Your Timesheets</Text>
+            </View> */}
+            <FlatList
+                data={timesheets}
+                renderItem={renderItem}
+                keyExtractor={(item) => item.id.toString()}
+                contentContainerStyle={styles.listContent}
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <Text style={styles.emptyText}>You haven't created any timesheets yet.</Text>
+                        <Text style={styles.emptySubText}>Use the 'Scan a Ticket' action on your dashboard to begin.</Text>
+                    </View>
+                }
+                refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchTimesheets} tintColor={THEME.colors.primary} />}
+            />
+        </SafeAreaView>
+    );
+};
+
 const styles = StyleSheet.create({
-    container: { padding: 15 },
-    title: { fontSize: 24, fontWeight: 'bold', marginBottom: 20 },
-    card: { backgroundColor: '#fff', padding: 20, borderRadius: 10, marginBottom: 15, elevation: 3 },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    jobName: { fontSize: 18, fontWeight: 'bold' },
-    date: { fontSize: 14, color: '#666', marginTop: 5 },
-    statusBadge: { paddingVertical: 5, paddingHorizontal: 12, borderRadius: 15, },
-    statusText: { color: '#fff', fontWeight: 'bold', fontSize: 12, },
-    statusPending: { backgroundColor: '#f39c12' },
-    statusSubmitted: { backgroundColor: '#3498db' },
-    statusApproved: { backgroundColor: '#2ecc71' },
-    statusRejected: { backgroundColor: '#e74c3c' },
-    emptyText: { textAlign: 'center', marginTop: 50, fontSize: 16 }
+    safeArea: { 
+        flex: 1, 
+        backgroundColor: THEME.colors.backgroundLight 
+    },
+    loadingIndicator: {
+        flex: 1,
+        backgroundColor: THEME.colors.backgroundLight,
+    },
+    // header: {
+    //     paddingHorizontal: 24,
+    //     paddingVertical: 16,
+    //     backgroundColor: THEME.colors.cardLight,
+    //     borderBottomWidth: 1,
+    //     borderBottomColor: THEME.colors.border,
+    // },
+    title: { 
+        fontFamily: THEME.fontFamily.display, 
+        fontSize: 24, 
+        fontWeight: 'bold', 
+        color: THEME.colors.contentLight
+    },
+    listContent: { 
+        paddingHorizontal: 16, 
+        paddingTop: 16,
+        paddingBottom: 30,
+        flexGrow: 1, // Important for ListEmptyComponent centering
+    },
+    
+    // Card Styles
+    card: { 
+        backgroundColor: THEME.colors.cardLight, 
+        padding: 16, 
+        borderRadius: THEME.borderRadius.lg, 
+        marginBottom: 12, 
+        shadowColor: "#000", 
+        shadowOffset: { width: 0, height: 1 }, 
+        shadowOpacity: 0.05, 
+        shadowRadius: 4, 
+        elevation: 2 
+    },
+    cardHeader: { 
+        flexDirection: 'row', 
+        justifyContent: 'space-between', 
+        alignItems: 'center' 
+    },
+    jobName: { 
+        fontFamily: THEME.fontFamily.display,
+        fontSize: 16, 
+        fontWeight: 'bold', 
+        color: THEME.colors.contentLight
+    },
+    date: { 
+        fontFamily: THEME.fontFamily.display,
+        fontSize: 13, 
+        color: THEME.colors.subtleLight, 
+        marginTop: 4 
+    },
+    
+    // Status Badge Styles
+    statusBadge: { 
+        paddingVertical: 4, 
+        paddingHorizontal: 10, 
+        borderRadius: THEME.borderRadius.lg,
+        marginLeft: 10,
+    },
+    statusText: { 
+        fontFamily: THEME.fontFamily.display,
+        fontWeight: '600', 
+        fontSize: 11,
+    },
+    // The previous status styles are replaced by the getStatusStyle function
+    
+    // Empty State Styles
+    emptyContainer: { 
+        flex: 1,
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        paddingTop: 80,
+        paddingHorizontal: 20
+    },
+    emptyText: { 
+        fontFamily: THEME.fontFamily.display,
+        textAlign: 'center', 
+        fontSize: 16,
+        fontWeight: '600',
+        color: THEME.colors.subtleLight
+    },
+    emptySubText: {
+        fontFamily: THEME.fontFamily.display,
+        textAlign: 'center', 
+        fontSize: 14,
+        marginTop: 8,
+        color: THEME.colors.brandStone
+    },
 });
 
 export default TimesheetListScreen;

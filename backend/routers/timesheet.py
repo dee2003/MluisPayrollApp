@@ -409,6 +409,7 @@ def get_timesheets_for_supervisor(
 
 
 
+# In your routers/timesheet.py
 
 # -------------------------------
 # GET a single timesheet by ID
@@ -416,8 +417,9 @@ def get_timesheets_for_supervisor(
 @router.get("/{timesheet_id}", response_model=schemas.Timesheet)
 def get_single_timesheet(timesheet_id: int, db: Session = Depends(get_db)):
     """
-    Returns a single timesheet, merging the foreman-saved JSON with static employee info.
-    Files are eagerly loaded.
+    Returns a single timesheet, safely enriching the foreman-saved JSON with static info
+    from the database for all entities (employees, equipment, materials, vendors, and dumping sites).
+    This is non-destructive and ensures all saved data is returned.
     """
     timesheet = (
         db.query(models.Timesheet)
@@ -428,44 +430,61 @@ def get_single_timesheet(timesheet_id: int, db: Session = Depends(get_db)):
     if not timesheet:
         raise HTTPException(status_code=404, detail="Timesheet not found")
 
-
-    # Foreman-saved JSON
-    saved_data = timesheet.data
+    saved_data = timesheet.data or {}
     if isinstance(saved_data, str):
         try:
             saved_data = json.loads(saved_data)
         except json.JSONDecodeError:
-            raise HTTPException(status_code=500, detail="Invalid timesheet JSON data")
+            saved_data = {} # Default to an empty dictionary on error
 
+    # --- Safe, Non-Destructive Enrichment Logic ---
+    def enrich_entities_in_place(entity_key: str, model, name_fields: list):
+        # Get the list of entities (e.g., employees, dumping_sites) from the saved data
+        saved_entities = saved_data.get(entity_key, [])
+        if not saved_entities:
+            return # Nothing to do if the key doesn't exist or the list is empty
 
-    # Enrich employees with DB details, but keep foreman-entered values
-    saved_employees = saved_data.get("employees", [])
-    if saved_employees:
-        saved_map = {e.get("id"): e for e in saved_employees if e.get("id") is not None}
-        ids = list(saved_map.keys())
-        if ids:
-            db_emps = db.query(models.Employee).filter(models.Employee.id.in_(ids)).all()
-            enriched = []
-            for emp in db_emps:
-                submitted = saved_map.get(emp.id, {})
-                enriched.append({
-                    "id": emp.id,
-                    "first_name": emp.first_name,
-                    "middle_name": emp.middle_name,
-                    "last_name": emp.last_name,
-                    "class_1": emp.class_1,
-                    "class_2": emp.class_2,
-                    # Source of truth from foreman
-                    "selected_class": submitted.get("selected_class"),
-                    "hours_per_phase": submitted.get("hours_per_phase", {}),
-                })
-            saved_data = {**saved_data, "employees": enriched}
+        # Get the IDs to look up in the database
+        entity_ids = [e.get("id") for e in saved_entities if e.get("id") is not None]
+        if not entity_ids:
+            return # No IDs to look up
 
+        # Fetch the corresponding records from the database in one query
+        db_entities = db.query(model).filter(model.id.in_(entity_ids)).all()
+        db_map = {db_e.id: db_e for db_e in db_entities}
 
+        # Loop through the entities saved by the foreman and add the name
+        for entity in saved_entities:
+            entity_id = entity.get("id")
+            db_record = db_map.get(entity_id)
+            
+            # If we found a matching record in the DB, add its name
+            if db_record:
+                name_parts = [getattr(db_record, field, "") for field in name_fields]
+                full_name = " ".join(filter(None, name_parts)).strip()
+                entity["name"] = full_name
+    
+    # --- End of Logic ---
+
+    # Call the enrichment function for EVERY entity type.
+    # This will modify the 'saved_data' dictionary directly.
+    enrich_entities_in_place("employees", models.Employee, ["first_name", "last_name"])
+    enrich_entities_in_place("equipment", models.Equipment, ["name"])
+    enrich_entities_in_place("materials", models.Material, ["name"])
+    enrich_entities_in_place("vendors", models.Vendor, ["name"])
+    enrich_entities_in_place("dumping_sites", models.DumpingSite, ["name"]) # The crucial addition
+
+    # Return the timesheet with the fully enriched data object
     timesheet.data = saved_data
     return timesheet
 
 
+
+
+# -------------------------------
+# UPDATE a timesheet + save Excel file
+# -------------------------------
+# In your routers/timesheet.py
 
 # -------------------------------
 # UPDATE a timesheet + save Excel file
@@ -473,15 +492,13 @@ def get_single_timesheet(timesheet_id: int, db: Session = Depends(get_db)):
 @router.put("/{timesheet_id}", response_model=schemas.Timesheet)
 def update_timesheet(timesheet_id: int, timesheet_update: schemas.TimesheetUpdate, db: Session = Depends(get_db)):
     """
-    Updates timesheet.data and optionally status, then generates a versioned Excel file.
+    Updates timesheet.data and optionally status, then generates a versioned Excel file
+    with specialized handling for dumping sites.
     """
-    NGROK_BASE_URL = "https://2d4229bd1d65.ngrok-free.app"
-
-
+    NGROK_BASE_URL = " https://541ce71740ad.ngrok-free.app"
     ts = db.query(models.Timesheet).filter(models.Timesheet.id == timesheet_id).first()
     if not ts:
         raise HTTPException(status_code=404, detail="Timesheet not found")
-
 
     payload = timesheet_update.dict(exclude_unset=True)
     if "data" in payload:
@@ -489,10 +506,8 @@ def update_timesheet(timesheet_id: int, timesheet_update: schemas.TimesheetUpdat
     if "status" in payload:
         ts.status = payload["status"]
 
-
     db.commit()
     db.refresh(ts)
-
 
     # Generate Excel using the now-committed data
     try:
@@ -500,22 +515,19 @@ def update_timesheet(timesheet_id: int, timesheet_update: schemas.TimesheetUpdat
         storage_dir = os.path.join(BASE_DIR, "storage")
         os.makedirs(storage_dir, exist_ok=True)
 
-
         ts_date_str = ts.date.strftime("%Y-%m-%d") if hasattr(ts.date, "strftime") else str(ts.date)
         date_folder = os.path.join(storage_dir, ts_date_str)
         os.makedirs(date_folder, exist_ok=True)
-
 
         existing = [f for f in os.listdir(date_folder) if f.startswith(f"timesheet_{ts.id}_")]
         version = len(existing) + 1
         file_name = f"timesheet_{ts.id}_{ts_date_str}_v{version}.xlsx"
         file_path_local = os.path.join(date_folder, file_name)
 
-
         data = ts.data if isinstance(ts.data, dict) else json.loads(ts.data)
         job_phases = data.get("job", {}).get("phase_codes", [])
 
-
+        # --- Generic DataFrame creator for Employees, Equipment, etc. ---
         def create_df(entities, name_key="name"):
             rows = []
             for ent in entities:
@@ -528,26 +540,37 @@ def update_timesheet(timesheet_id: int, timesheet_update: schemas.TimesheetUpdat
                 rows.append(row)
             return pd.DataFrame(rows)
 
+        # --- START: Specialized DataFrame creator for Dumping Sites ---
+        def create_dumping_site_df(entities):
+            rows = []
+            for ent in entities:
+                row = {"ID": ent.get("id", ""), "Name": ent.get("name", "")}
+                for phase in job_phases:
+                    # Create separate columns for loads and quantity
+                    row[f"{phase} (# of Loads)"] = ent.get("hoursperphase", {}).get(phase, 0)
+                    row[f"{phase} (Qty)"] = ent.get("ticketsperphase", {}).get(phase, 0)
+                rows.append(row)
+            return pd.DataFrame(rows)
+        # --- END: Specialized DataFrame creator ---
 
         with pd.ExcelWriter(file_path_local, engine="openpyxl") as writer:
             df_emp = create_df(data.get("employees", []), name_key="first_name")
             df_emp.to_excel(writer, index=False, sheet_name="Employees")
 
-
             df_eq = create_df(data.get("equipment", []))
             df_eq.to_excel(writer, index=False, sheet_name="Equipment")
-
 
             df_mat = create_df(data.get("materials", []))
             df_mat.to_excel(writer, index=False, sheet_name="Materials")
 
-
             df_vend = create_df(data.get("vendors", []))
             df_vend.to_excel(writer, index=False, sheet_name="Vendors")
-
+            
+            # --- THE FIX: Use the new specialized function for dumping sites ---
+            df_dump = create_dumping_site_df(data.get("dumping_sites", []))
+            df_dump.to_excel(writer, index=False, sheet_name="DumpingSites")
 
         file_url = f"{NGROK_BASE_URL}/storage/{ts_date_str}/{file_name}"
-
 
         new_file = models.TimesheetFile(
             timesheet_id=ts.id,
@@ -555,21 +578,14 @@ def update_timesheet(timesheet_id: int, timesheet_update: schemas.TimesheetUpdat
             foreman_id=ts.foreman_id,
         )
         db.add(new_file)
-
-
-        # Update sent/status if this update represents a send action on save
-        # ts.sent = True
-        # ts.status = "sent"
-
-
         db.commit()
-
 
     except Exception as e:
         print(f"❌ Excel generation/recording failed: {e}")
 
-
     return ts
+
+
 
 
 

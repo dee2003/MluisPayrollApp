@@ -1,311 +1,354 @@
-// import React, { useEffect, useState } from 'react';
-// import {
-//   View,
-//   Text,
-//   FlatList,
-//   StyleSheet,
-//   ActivityIndicator,
-//   SafeAreaView,
-//   TouchableOpacity,
-//   Alert,
-// } from 'react-native';
-// import { RouteProp, useRoute, useNavigation } from '@react-navigation/native';
-// import apiClient from '../../api/apiClient';
-// import type { SupervisorStackParamList } from '../../navigation/AppNavigator';
-// import Icon from 'react-native-vector-icons/Ionicons';
-// import { StackNavigationProp } from '@react-navigation/stack';
-
-// type Ticket = {
-//   id: number;
-//   ticket_number: string;
-//   job_name: string;
-// };
-
-// type TicketListRouteProp = RouteProp<SupervisorStackParamList, 'SupervisorTicketList'>;
-// type NavigationProp = StackNavigationProp<SupervisorStackParamList, 'SupervisorTicketList'>;
-
-// const COLORS = {
-//   primary: '#007AFF',
-//   background: '#F2F2F7',
-//   card: '#FFFFFF',
-//   textPrimary: '#1C1C1E',
-//   textSecondary: '#636366',
-//   border: '#E5E5EA',
-// };
-
-// const SupervisorTicketListScreen = () => {
-//   const route = useRoute<TicketListRouteProp>();
-//   const navigation = useNavigation<NavigationProp>();
-//   const { foremanId, date } = route.params;
-
-//   const [tickets, setTickets] = useState<Ticket[]>([]);
-//   const [loading, setLoading] = useState(true);
-
-//   useEffect(() => {
-//     const fetchTickets = async () => {
-//       setLoading(true);
-//       try {
-//         const response = await apiClient.get<Ticket[]>(
-//           `/api/tickets/for-supervisor?foreman_id=${foremanId}&date=${date}`
-//         );
-//         setTickets(response.data);
-//       } catch (error: any) {
-//         console.error('Failed to fetch tickets:', error);
-//         Alert.alert('Error', 'Could not load tickets for this entry.');
-//       } finally {
-//         setLoading(false);
-//       }
-//     };
-
-//     fetchTickets();
-//   }, [foremanId, date]);
-  
-//   const handleSelectTicket = (ticketId: number) => {
-//     // Implement navigation to a ticket detail/review screen if you have one
-//     Alert.alert("Navigate", `Would navigate to Ticket ID: ${ticketId}`);
-//   };
-
-//   const renderTicketItem = ({ item }: { item: Ticket }) => (
-//     <TouchableOpacity style={styles.card} onPress={() => handleSelectTicket(item.id)}>
-//       <View style={styles.cardContent}>
-//         <Text style={styles.cardTitle}>Ticket #: {item.ticket_number}</Text>
-//         <Text style={styles.cardSubtitle}>{item.job_name}</Text>
-//       </View>
-//       <Icon name="chevron-forward-outline" size={22} color={COLORS.textSecondary} />
-//     </TouchableOpacity>
-//   );
-
-//   if (loading) {
-//     return (
-//       <View style={styles.centered}>
-//         <ActivityIndicator size="large" color={COLORS.primary} />
-//       </View>
-//     );
-//   }
-
-//   return (
-//     <SafeAreaView style={styles.container}>
-//       <FlatList
-//         data={tickets}
-//         renderItem={renderTicketItem}
-//         keyExtractor={(item) => item.id.toString()}
-//         contentContainerStyle={styles.listContainer}
-//         ListEmptyComponent={
-//           <View style={styles.emptyContainer}>
-//             <Icon name="ticket-outline" size={60} color={COLORS.border} />
-//             <Text style={styles.emptyText}>No tickets found for this date.</Text>
-//           </View>
-//         }
-//       />
-//     </SafeAreaView>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: { flex: 1, backgroundColor: COLORS.background },
-//   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-//   listContainer: { padding: 16 },
-//   card: {
-//     backgroundColor: COLORS.card,
-//     borderRadius: 12,
-//     padding: 16,
-//     marginBottom: 12,
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     justifyContent: 'space-between',
-//   },
-//   cardContent: { flex: 1 },
-//   cardTitle: { fontSize: 17, fontWeight: '600', color: COLORS.textPrimary },
-//   cardSubtitle: { fontSize: 15, color: COLORS.textSecondary, marginTop: 4 },
-//   emptyContainer: { alignItems: 'center', marginTop: 80 },
-//   emptyText: { fontSize: 16, color: COLORS.textSecondary, marginTop: 12 },
-// });
-
-// export default SupervisorTicketListScreen;
-
-
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  Image,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  ActivityIndicator,
-  Alert,
-  SafeAreaView,
-  Dimensions,
+    View,
+    Text,
+    FlatList,
+    Image,
+    StyleSheet,
+    TouchableOpacity,
+    TextInput,
+    ActivityIndicator,
+    Alert,
+    SafeAreaView,
+    Dimensions,
+    RefreshControl, // Added RefreshControl for a better UX
 } from 'react-native';
-import { useRoute } from '@react-navigation/native';
+import { useRoute, useNavigation } from '@react-navigation/native'; // Import useNavigation
 import Ionicons from 'react-native-vector-icons/Ionicons';
-import apiClient from '../../api/apiClient'; // your axios setup or fetch wrapper
+import apiClient from '../../api/apiClient';
 
 const { width } = Dimensions.get('window');
-const IMAGE_SIZE = (width - 48) / 2; // 2 columns with 16px padding + 8px gap
+
+// Adapted Theme and Colors from Supervisor/PE Dashboard
+const THEME = {
+    colors: {
+        primary: '#4A5C4D', // Primary action color (dark green)
+        backgroundLight: '#F8F7F2', // Light background
+        contentLight: '#3D3D3D', // Primary text content
+        subtleLight: '#797979', // Secondary text content
+        cardLight: '#FFFFFF', // Card/container background
+        brandStone: '#8E8E8E', // Subtle brand color
+        danger: '#FF3B30',
+        success: '#16A34A', // For saved state/indicator
+        border: '#E5E5E5', // Light border
+    },
+    fontFamily: { display: 'System' },
+    borderRadius: { lg: 12, sm: 8, full: 9999 },
+};
+
+const HORIZONTAL_PADDING = 16;
+const COLUMN_SPACING = 10;
+const IMAGE_SIZE = (width - HORIZONTAL_PADDING * 2 - COLUMN_SPACING) / 2;
 
 type Ticket = {
-  id: number;
-  image_path: string;
-  phase_code?: string;
+    id: number;
+    image_path: string;
+    phase_code?: string;
+};
+
+type RouteParams = {
+    foremanId: number;
+    foremanName: string;
+    date: string;
 };
 
 const SupervisorTicketList = () => {
-  const route = useRoute<any>();
-  const { foremanId, foremanName, date } = route.params;
+    const route = useRoute<any>();
+    const navigation = useNavigation(); // Hook for setting options
+    const { foremanId, foremanName, date } = route.params as RouteParams;
 
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [fullImageUri, setFullImageUri] = useState<string | null>(null);
-  const [phaseCodes, setPhaseCodes] = useState<Record<number, string>>({}); // ticket id to phase code
+    const [tickets, setTickets] = useState<Ticket[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const [fullImageUri, setFullImageUri] = useState<string | null>(null);
+    const [phaseCodes, setPhaseCodes] = useState<Record<number, string>>({});
+    const [savedStatus, setSavedStatus] = useState<Record<number, boolean>>({});
 
-  useEffect(() => {
-    loadTickets();
-  }, []);
+    // Set dynamic header title
+    useEffect(() => {
+        navigation.setOptions({
+            title: `${foremanName}'s Tickets`,
+        });
+    }, [foremanName, navigation]);
 
-  const loadTickets = async () => {
-  setLoading(true);
-  try {
-    const response = await apiClient.get('/api/tickets/for-supervisor', {
-      params: { foreman_id: foremanId, date },
-    });
-    
-    const data: Ticket[] = response.data || []; // Since endpoint returns list directly
-    setTickets(data);
-    
-    const codes: Record<number, string> = {};
-    data.forEach(t => {
-      codes[t.id] = t.phase_code || '';
-    });
-    setPhaseCodes(codes);
-  } catch (err: any) {
-    Alert.alert('Error', err.response?.data?.detail || 'Failed to load tickets');
-  } finally {
-    setLoading(false);
-  }
-};
+    const loadTickets = useCallback(async () => {
+        const fetchStateSetter = refreshing ? setRefreshing : setLoading;
+        fetchStateSetter(true);
+        try {
+            const response = await apiClient.get('/api/tickets/for-supervisor', {
+                params: { foreman_id: foremanId, date },
+            });
+            
+            const data: Ticket[] = response.data || [];
+            setTickets(data);
+            
+            const codes: Record<number, string> = {};
+            data.forEach(t => {
+                codes[t.id] = t.phase_code || '';
+            });
+            setPhaseCodes(codes);
+        } catch (err: any) {
+            Alert.alert('Error', err.response?.data?.detail || 'Failed to load tickets');
+        } finally {
+            fetchStateSetter(false);
+        }
+    }, [foremanId, date, refreshing]);
 
-const savePhaseCode = async (ticketId: number) => {
-  const phase_code = phaseCodes[ticketId];
-  try {
-    await apiClient.patch(`/api/tickets/${ticketId}`, { phase_code });
-    Alert.alert('Saved', 'Phase code saved successfully');
-  } catch (err: any) {
-    Alert.alert('Save Error', err.response?.data?.detail || 'Failed to save phase code');
-  }
-};
+    useEffect(() => {
+        loadTickets();
+    }, [loadTickets]);
 
-  const renderTicket = ({ item }: { item: Ticket }) => (
-    <View style={styles.ticketContainer}>
-      <TouchableOpacity onPress={() => setFullImageUri(item.image_path)}>
-        <Image
-          source={{ uri: `${apiClient.defaults.baseURL}${item.image_path}` }}
-          style={styles.image}
-        />
-      </TouchableOpacity>
-      <TextInput
-        style={styles.input}
-        placeholder="Enter Phase Code"
-        value={phaseCodes[item.id]}
-        onChangeText={text => setPhaseCodes(prev => ({ ...prev, [item.id]: text }))}
-        onBlur={() => savePhaseCode(item.id)}
-        returnKeyType="done"
-      />
-    </View>
-  );
+    const handleRefresh = () => {
+        loadTickets();
+    };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>
-          Tickets for {foremanName} on {new Date(date).toLocaleDateString()}
-        </Text>
-      </View>
+    const savePhaseCode = async (ticketId: number) => {
+        const phase_code = phaseCodes[ticketId].trim();
 
-      {loading ? (
-        <ActivityIndicator size="large" color="#007AFF" />
-      ) : tickets.length === 0 ? (
-        <Text style={styles.emptyText}>No tickets found for this date.</Text>
-      ) : (
-        <FlatList
-          data={tickets}
-          keyExtractor={item => item.id.toString()}
-          renderItem={renderTicket}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={{ paddingBottom: 20 }}
-        />
-      )}
+        // Find the original ticket to check if the code changed
+        const originalTicket = tickets.find(t => t.id === ticketId);
+        if (originalTicket?.phase_code === phase_code) return; // No change, no save
 
-      {fullImageUri && (
-        <View style={styles.fullImageContainer}>
-          <Image source={{ uri: `${apiClient.defaults.baseURL}${fullImageUri}` }} style={styles.fullImage} />
-          <TouchableOpacity style={styles.closeButton} onPress={() => setFullImageUri(null)}>
-            <Ionicons name="close-circle" size={36} color="#fff" />
-          </TouchableOpacity>
+        try {
+            setSavedStatus(prev => ({ ...prev, [ticketId]: false })); // Reset status while saving
+            await apiClient.patch(`/api/tickets/${ticketId}`, { phase_code });
+            
+            // Update local state to reflect the saved code and set status to true
+            setTickets(prevTickets => prevTickets.map(t => 
+                t.id === ticketId ? { ...t, phase_code: phase_code } : t
+            ));
+            setSavedStatus(prev => ({ ...prev, [ticketId]: true }));
+        } catch (err: any) {
+            Alert.alert('Save Error', err.response?.data?.detail || 'Failed to save phase code');
+            setSavedStatus(prev => ({ ...prev, [ticketId]: false }));
+        }
+    };
+
+    const renderTicket = ({ item }: { item: Ticket }) => (
+        <View style={styles.ticketContainer}>
+            <TouchableOpacity onPress={() => setFullImageUri(item.image_path)}>
+                <Image
+                    source={{ uri: `${apiClient.defaults.baseURL}${item.image_path}` }}
+                    style={styles.image}
+                />
+            </TouchableOpacity>
+            <View style={styles.inputRow}>
+                <TextInput
+                    style={styles.input}
+                    placeholder="Enter Phase Code"
+                    placeholderTextColor={THEME.colors.subtleLight}
+                    value={phaseCodes[item.id]}
+                    onChangeText={text => {
+                        setPhaseCodes(prev => ({ ...prev, [item.id]: text }));
+                        setSavedStatus(prev => ({ ...prev, [item.id]: false })); // Mark as unsaved on change
+                    }}
+                    onEndEditing={() => savePhaseCode(item.id)}
+                    returnKeyType="done"
+                />
+                <View style={[styles.statusIndicator, { backgroundColor: savedStatus[item.id] ? THEME.colors.success : THEME.colors.brandStone }]}>
+                    <Ionicons 
+                        name={savedStatus[item.id] ? "checkmark" : "sync"} 
+                        size={16} 
+                        color={THEME.colors.cardLight} 
+                    />
+                </View>
+            </View>
         </View>
-      )}
-    </SafeAreaView>
-  );
+    );
+
+    const ListHeaderComponent = (
+        <View style={styles.listHeader}>
+            {/* <Text style={styles.headerSubtitle}>
+                Tickets submitted on: <Text style={styles.headerInfo}>{new Date(date + 'T00:00:00').toLocaleDateString()}</Text>
+            </Text> */}
+            <Text style={styles.instructionText}>
+                Tap image for full view. Enter **Phase Code** below, then tap **Done** or away to save.
+            </Text>
+        </View>
+    );
+
+    if (loading && !refreshing) {
+        return (
+            <SafeAreaView style={styles.centeredContainer}>
+                <ActivityIndicator size="large" color={THEME.colors.primary} />
+            </SafeAreaView>
+        );
+    }
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <FlatList
+                data={tickets}
+                keyExtractor={item => item.id.toString()}
+                renderItem={renderTicket}
+                numColumns={2}
+                columnWrapperStyle={styles.row}
+                contentContainerStyle={styles.listContent}
+                ListHeaderComponent={ListHeaderComponent}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        tintColor={THEME.colors.primary}
+                    />
+                }
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <Ionicons name="receipt-outline" size={60} color={THEME.colors.brandStone} />
+                        <Text style={styles.emptyText}>No tickets require review.</Text>
+                        <Text style={styles.emptySubText}>The foreman has not submitted any tickets for this date.</Text>
+                    </View>
+                }
+            />
+
+            {/* Full Image Modal/Overlay */}
+            {fullImageUri && (
+                <View style={styles.fullImageContainer}>
+                    <Image source={{ uri: `${apiClient.defaults.baseURL}${fullImageUri}` }} style={styles.fullImage} resizeMode="contain" />
+                    <TouchableOpacity style={styles.closeButton} onPress={() => setFullImageUri(null)}>
+                        <Ionicons name="close-circle" size={40} color={THEME.colors.cardLight} />
+                    </TouchableOpacity>
+                </View>
+            )}
+        </SafeAreaView>
+    );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f0f2f5' },
-  header: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
-    backgroundColor: '#fff',
-  },
-  title: { fontSize: 20, fontWeight: 'bold', textAlign: 'center' },
-  row: { justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 16 },
-  ticketContainer: {
-    width: IMAGE_SIZE,
-    marginBottom: 16,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    overflow: 'hidden',
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 2 },
-  },
-  image: {
-    width: '100%',
-    height: IMAGE_SIZE,
-    resizeMode: 'cover',
-  },
-  input: {
-    height: 38,
-    borderTopWidth: 1,
-    borderTopColor: '#ccc',
-    paddingHorizontal: 8,
-    fontSize: 16,
-  },
-  emptyText: { marginTop: 50, textAlign: 'center', fontSize: 16, color: '#666' },
-  fullImageContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.95)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 999,
-  },
-  fullImage: {
-    width: '90%',
-    height: '80%',
-    resizeMode: 'contain',
-  },
-  closeButton: {
-    position: 'absolute',
-    top: 40,
-    right: 20,
-  },
+    container: { 
+        flex: 1, 
+        backgroundColor: THEME.colors.backgroundLight 
+    },
+    centeredContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: THEME.colors.backgroundLight,
+    },
+    listContent: { 
+        paddingBottom: 20,
+    },
+    
+    // Header
+    listHeader: {
+        paddingHorizontal: HORIZONTAL_PADDING,
+        paddingTop: 10,
+        paddingBottom: 10,
+        marginBottom: 5,
+    },
+    headerSubtitle: {
+        fontFamily: THEME.fontFamily.display,
+        fontSize: 15,
+        fontWeight: '500',
+        color: THEME.colors.subtleLight,
+        marginBottom: 8,
+    },
+    headerInfo: {
+        fontWeight: '700',
+        color: THEME.colors.primary,
+    },
+    instructionText: {
+        fontFamily: THEME.fontFamily.display,
+        fontSize: 12,
+        color: THEME.colors.brandStone,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: THEME.colors.border,
+    },
+
+    // Ticket Grid
+    row: { 
+        justifyContent: 'space-between', 
+        paddingHorizontal: HORIZONTAL_PADDING, 
+        marginTop: COLUMN_SPACING 
+    },
+    ticketContainer: {
+        width: IMAGE_SIZE,
+        backgroundColor: THEME.colors.cardLight,
+        borderRadius: THEME.borderRadius.sm,
+        overflow: 'hidden',
+        elevation: 3,
+        shadowColor: '#000',
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        shadowOffset: { width: 0, height: 2 },
+    },
+    image: {
+        width: '100%',
+        height: IMAGE_SIZE,
+        resizeMode: 'cover',
+        backgroundColor: THEME.colors.border,
+    },
+    
+    // Input and Status Indicator
+    inputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderTopWidth: 1,
+        borderTopColor: THEME.colors.border,
+        backgroundColor: THEME.colors.backgroundLight,
+    },
+    input: {
+        flex: 1,
+        fontFamily: THEME.fontFamily.display,
+        height: 40,
+        paddingHorizontal: 10,
+        fontSize: 15,
+        fontWeight: '600',
+        textAlign: 'center',
+        color: THEME.colors.primary,
+    },
+    statusIndicator: {
+        width: 40,
+        height: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderLeftWidth: 1,
+        borderLeftColor: THEME.colors.border,
+    },
+    
+    // Empty State
+    emptyContainer: { 
+        alignItems: 'center', 
+        marginTop: 80,
+        paddingHorizontal: 40
+    },
+    emptyText: { 
+        fontFamily: THEME.fontFamily.display,
+        marginTop: 16, 
+        textAlign: 'center', 
+        fontSize: 18, 
+        fontWeight: '600',
+        color: THEME.colors.subtleLight 
+    },
+    emptySubText: {
+        fontFamily: THEME.fontFamily.display,
+        marginTop: 8, 
+        textAlign: 'center', 
+        fontSize: 14, 
+        color: THEME.colors.brandStone
+    },
+
+    // Full Image Modal
+    fullImageContainer: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.95)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 999,
+    },
+    fullImage: {
+        width: '90%',
+        height: '80%',
+    },
+    closeButton: {
+        position: 'absolute',
+        top: 40,
+        right: 20,
+        backgroundColor: 'rgba(0, 0, 0, 0.4)',
+        borderRadius: THEME.borderRadius.full,
+        padding: 4,
+    },
 });
 
 export default SupervisorTicketList;

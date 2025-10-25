@@ -658,7 +658,7 @@ const TimesheetForm = ({ onClose }) => {
     const [projectEngineer, setProjectEngineer] = useState("");
     const [date, setDate] = useState(new Date().toISOString().split("T")[0]);
     const [loading, setLoading] = useState(false);
-    const timeOfDayOptions = ["Morning", "Afternoon", "Evening", "Night"];
+    const timeOfDayOptions = ["Day", "Night"];
     const weatherOptions = ["Sunny", "Cloudy", "Rainy", "Snowy", "Windy"];
     const [selectedJobPhaseId, setSelectedJobPhaseId] = useState(null);
     const [unit, setUnit] = useState('C');

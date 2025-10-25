@@ -86,6 +86,12 @@ const TimesheetList = () => {
           items={data.vendors}
           renderItem={(ven) => ven.name}
         />
+        <DetailSection 
+  title="Dumping Sites" 
+  items={data.dumping_sites ?? []}  // ✅ default to empty array
+  renderItem={(ds) => `${ds.name} (# of Loads: ${ds.loads ?? '-'}, Qty: ${ds.qty ?? '-'})`}
+/>
+
       </View>
     );
   };

@@ -194,23 +194,33 @@ def submit_all_for_date(payload: SubmitDatePayload, db: Session = Depends(get_db
 @router.get("/pe/dashboard", status_code=200)
 def get_pe_dashboard(db: Session = Depends(get_db)):
     """
-    Returns all submitted dates with their supervisors, timesheets, tickets, and job codes
-    for Project Engineer dashboard.
+    Returns all daily submissions that have been 'APPROVED' by the Supervisor
+    and are now pending final review by the Project Engineer.
     """
     submissions = (
         db.query(models.DailySubmission)
+        # Assuming APPROVED means supervisor has reviewed and it's ready for PE
         .filter(models.DailySubmission.status == "APPROVED")
         .order_by(models.DailySubmission.date.desc())
         .all()
     )
     result = []
     for sub in submissions:
-        # :small_blue_diamond: Fetch supervisor instead of foreman
+        # 1. Fetch Supervisor's Name
         supervisor = (
             db.query(models.User)
             .filter(models.User.id == sub.supervisor_id)
             .first()
         )
+        supervisor_name = f"{supervisor.first_name} {supervisor.last_name}" if supervisor else "Unknown Supervisor"
+        # :sparkles: 2. Fetch Foreman's Name (REQUIRED by frontend ItemType)
+        foreman = (
+            db.query(models.User)
+            .filter(models.User.id == sub.foreman_id)
+            .first()
+        )
+        foreman_name = f"{foreman.first_name} {foreman.last_name}" if foreman else "Unknown Foreman"
+        # 3. Get Timesheet Counts (No change needed here)
         timesheets = (
             db.query(models.Timesheet)
             .filter(
@@ -220,6 +230,7 @@ def get_pe_dashboard(db: Session = Depends(get_db)):
             )
             .all()
         )
+        # 4. Get Ticket Counts (No change needed here)
         tickets = (
             db.query(models.Ticket)
             .filter(
@@ -229,16 +240,18 @@ def get_pe_dashboard(db: Session = Depends(get_db)):
             )
             .all()
         )
+        # 5. Build Result Dictionary - Ensure all keys match frontend ItemType
         result.append({
-            "date": sub.date,
+            "date": sub.date.strftime("%Y-%m-%d"), # Ensure date is a string format expected by JS
             "foreman_id": sub.foreman_id,
-            # :small_blue_diamond: Replace foreman_name with supervisor_name
-            "supervisor_name": f"{supervisor.first_name} {supervisor.last_name}" if supervisor else "Unknown",
+            "foreman_name": supervisor_name,       # :sparkles: Add Foreman Name
+            "supervisor_name": supervisor_name, # Use Supervisor Name
             "job_code": sub.job_code,
             "timesheet_count": len(timesheets),
             "ticket_count": len(tickets),
         })
     return result
+
 @router.get("/pe/timesheets")
 def get_pe_timesheets(foreman_id: int, date: str, db: Session = Depends(get_db)):
     target_date = date_type.fromisoformat(date)

@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from typing import Type, TypeVar, List
 from fastapi.encoders import jsonable_encoder
+from . import crew_services  # ✅ --- ADD THIS LINE ---
 
 from . import models, schemas, utils
 from .database import get_db
@@ -28,7 +29,7 @@ def create_crud_router(
 ) -> APIRouter:
     """
     A factory that creates a set of CRUD endpoints for a given SQLAlchemy model.
-    It now includes a check to prevent creating items with duplicate primary keys.
+    It now includes logic to snapshot crew configurations when a resource's status changes.
     """
     router = APIRouter(prefix=prefix, tags=tags)
 
@@ -41,22 +42,19 @@ def create_crud_router(
     @router.post("/", response_model=response_schema, status_code=status.HTTP_201_CREATED)
     def create_item(item: create_schema, db: Session = Depends(get_db)):
         item_data = item.dict()
-
-        # --- THE FIX: CHECK FOR DUPLICATE PRIMARY KEY ---
+        
+        # Check for duplicate primary key
         pk_value = item_data.get(pk_name)
-        if pk_value is not None:
-            existing_item = db.query(model).filter(pk_column == pk_value).first()
-            if existing_item:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"{model.__name__} with {pk_name} '{pk_value}' already exists."
-                )
-        # --- END OF FIX ---
+        if pk_value and db.query(model).filter(pk_column == pk_value).first():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"{model.__name__} with {pk_name} '{pk_value}' already exists."
+            )
 
         # Automatically hash passwords for the User model
         if model.__name__ == "User" and "password" in item_data:
             item_data["password"] = utils.hash_password(item_data["password"])
-
+        
         db_item = model(**item_data)
         db.add(db_item)
         db.commit()
@@ -66,6 +64,10 @@ def create_crud_router(
     # --- READ ALL ---
     @router.get("/", response_model=List[response_schema])
     def list_items(db: Session = Depends(get_db)):
+        query = db.query(model)
+        if hasattr(model, 'status'):
+        # Filter the query to only include items where the status is not 'inactive'.
+            query = query.filter(model.status != models.ResourceStatus.INACTIVE)
         return db.query(model).all()
 
     # --- READ ONE ---
@@ -83,8 +85,50 @@ def create_crud_router(
         if not db_item:
             raise HTTPException(status_code=404, detail=f"{model.__name__} not found")
         
-        item_data = item.dict(exclude_unset=True)
-        for key, value in item_data.items():
+        update_data = item.dict(exclude_unset=True)
+
+        # 👇 ===== START OF SNAPSHOT INTEGRATION LOGIC ===== 👇
+        
+        resource_models = ["Employee", "Equipment", "Material", "Vendor", "DumpingSite"]
+        is_resource_status_change = (
+            model.__name__ in resource_models and
+            'status' in update_data and
+            hasattr(db_item, 'status') and 
+            db_item.status.value != update_data['status']
+        )
+
+        if is_resource_status_change:
+            new_status = update_data['status']
+            current_user_id = 1  # Placeholder for logged-in user ID from auth dependency
+
+            # Dynamically access the relationship on CrewMapping (e.g., CrewMapping.employees)
+            relationship_attr = getattr(models.CrewMapping, model.__tablename__)
+            crews_to_update = db.query(models.CrewMapping).filter(relationship_attr.any(id=item_id)).all()
+
+            for crew in crews_to_update:
+                if new_status.lower() == 'inactive':
+                    notes = f"{model.__name__} '{item_id}' status changed to Inactive."
+                    crew_services.create_crew_snapshot(db, crew.id, user_id=current_user_id, notes=notes)
+                    
+                    crew.status = "Partially Inactive"
+                    # Dynamically get the list of members from the crew object and filter it
+                    member_list = getattr(crew, model.__tablename__)
+                    filtered_list = [member for member in member_list if member.id != item_id]
+                    setattr(crew, model.__tablename__, filtered_list)
+
+                elif new_status.lower() == 'active':
+                    latest_ref = db.query(models.CrewMappingReference).filter(
+                        models.CrewMappingReference.crew_mapping_id == crew.id
+                    ).order_by(models.CrewMappingReference.created_at.desc()).first()
+
+                    if latest_ref:
+                        crew_services.restore_from_reference(db, latest_ref.id)
+                    crew.status = "Active"
+        
+        # 👆 ===== END OF SNAPSHOT INTEGRATION LOGIC ===== 👆
+
+        # Apply the original update to the resource itself
+        for key, value in update_data.items():
             setattr(db_item, key, value)
             
         db.commit()
@@ -125,56 +169,42 @@ def create_timesheet(db: Session, ts: schemas.TimesheetCreate):
     db.refresh(db_ts)
     return db_ts
 
-def get_timesheets(db: Session):
-    """Retrieves all timesheets and includes foreman's full name."""
-    results = db.query(models.Timesheet, models.User).join(
-        models.User, models.Timesheet.foreman_id == models.User.id
-    ).all()
+# In crud.py
+from sqlalchemy import orm  # <--- ADD THIS LINE
 
-    timesheets = []
-    for ts, foreman in results:
-        timesheets.append({
-            "id": ts.id,
-            "date": ts.date.isoformat(),
-            "foreman_id": ts.foreman_id,
-            "foreman_name": f"{foreman.first_name} {foreman.last_name}",
-            "job_name": ts.timesheet_name,
-            "data": ts.data,
-            "sent": ts.sent
-        })
-    return timesheets
+# In backend/crud.py
+
+# Make sure you have these imports at the top of the file
+from sqlalchemy import orm
+from . import models, schemas
 
 def get_crew_mapping(db: Session, foreman_id: int):
-    """Retrieves all resources for a foreman's crew mapping."""
-    mapping = db.query(models.CrewMapping).filter(models.CrewMapping.foreman_id == foreman_id).first()
+    """
+    Retrieves all resources for a foreman's crew mapping by directly
+    accessing the SQLAlchemy relationships.
+    """
+    # Use eager loading to fetch all related items in a single, efficient query
+    mapping = db.query(models.CrewMapping).options(
+        orm.selectinload(models.CrewMapping.employees),
+        orm.selectinload(models.CrewMapping.equipment),
+        orm.selectinload(models.CrewMapping.materials),
+        orm.selectinload(models.CrewMapping.vendors),
+        orm.selectinload(models.CrewMapping.dumping_sites)
+    ).filter(models.CrewMapping.foreman_id == foreman_id).first()
 
     if not mapping:
-        return None
+        return None # Or return a default empty structure if the frontend expects it
 
-    employee_ids_str = mapping.employee_ids or ''
-    equipment_ids_str = mapping.equipment_ids or ''
-    material_ids_str = mapping.material_ids or ''
-    vendor_ids_str = mapping.vendor_ids or ''
-    dumping_site_ids_str = mapping.dumping_site_ids or ''
-
-    employee_ids = [eid.strip() for eid in employee_ids_str.split(',') if eid.strip()]
-    equipment_ids = [eqid.strip() for eqid in equipment_ids_str.split(',') if eqid.strip()]
-    material_ids = [int(mid.strip()) for mid in material_ids_str.split(',') if mid.strip()]
-    vendor_ids = [int(vid.strip()) for vid in vendor_ids_str.split(',') if vid.strip()]
-    dumping_site_ids = [dsid.strip() for dsid in dumping_site_ids_str.split(',') if dsid.strip()]
-
-    employees = db.query(models.Employee).filter(models.Employee.id.in_(employee_ids)).all() if employee_ids else []
-    equipment = db.query(models.Equipment).filter(models.Equipment.id.in_(equipment_ids)).all() if equipment_ids else []
-    materials = db.query(models.Material).filter(models.Material.id.in_(material_ids)).all() if material_ids else []
-    vendors = db.query(models.Vendor).filter(models.Vendor.id.in_(vendor_ids)).all() if vendor_ids else []
-    dumping_sites = db.query(models.DumpingSite).filter(models.DumpingSite.id.in_(dumping_site_ids)).all() if dumping_site_ids else []
-
+    # --- THE FIX IS HERE ---
+    # The 'mapping' object already contains the lists of employees, equipment, etc.
+    # We just need to ensure the returned dictionary includes the mapping's own ID and status.
     return {
+        "id": mapping.id, # <--- ADD THIS LINE
         "foreman_id": foreman_id,
-        "employees": employees,
-        "equipment": equipment,
-        "materials": materials,
-        "vendors": vendors,
-        "dumping_sites": dumping_sites,
-
+        "status": mapping.status, # <--- ADD THIS LINE
+        "employees": mapping.employees,
+        "equipment": mapping.equipment,
+        "materials": mapping.materials,
+        "vendors": mapping.vendors,
+        "dumping_sites": mapping.dumping_sites,
     }

@@ -326,12 +326,16 @@ router = APIRouter(
 # -------------------------------
 # CREATE a new timesheet
 # -------------------------------
+# In your timesheet router file
+from datetime import datetime
+
 @router.post("/", response_model=schemas.Timesheet, status_code=status.HTTP_201_CREATED)
 def create_timesheet(timesheet: schemas.TimesheetCreate, db: Session = Depends(get_db)):
     """
-    Creates a new timesheet record; timesheet_name is derived from data.
+    Creates a new timesheet record.
     """
     data_to_store = timesheet.data or {}
+    
     job_name = (
         data_to_store.get("job_name")
         or data_to_store.get("job", {}).get("job_description")
@@ -339,19 +343,34 @@ def create_timesheet(timesheet: schemas.TimesheetCreate, db: Session = Depends(g
         or data_to_store.get("job", {}).get("job_code")
         or "Untitled Timesheet"
     )
+    status_to_save = (timesheet.status or "draft").title()
+    if status_to_save.lower() == 'draft':
+        status_to_save = 'draft'
+
+
     db_timesheet = models.Timesheet(
         foreman_id=timesheet.foreman_id,
         date=timesheet.date,
         timesheet_name=job_name,
+        
+        # --- CORRECTED PART ---
+        # The 'data' field now maps to the JSONB column in the model
         data=data_to_store,
-        sent=False,
-        status=timesheet.status or "draft", # Default to 'draft'
+        
+        # The 'sent' boolean is gone. The status and sent_date handle this.
+        status=status_to_save, 
+        
         job_phase_id=timesheet.job_phase_id,
+        
+        # Optionally set sent_date if the timesheet is submitted immediately
+        # sent_date=datetime.utcnow() if timesheet.status == "Submitted" else None
     )
+
     db.add(db_timesheet)
     db.commit()
     db.refresh(db_timesheet)
     return db_timesheet
+
 
 
 
@@ -657,7 +676,6 @@ def list_timesheets(db: Session = Depends(get_db)):
             foreman_name=foreman_name,
             job_name=ts.timesheet_name,  # <-- The FIX: Populate the required 'job_name' field
             data=ts.data,
-            sent=ts.sent,
             status=ts.status
         ))
         

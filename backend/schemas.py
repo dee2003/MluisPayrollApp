@@ -3,6 +3,7 @@ from typing import Optional, List, Any, Dict
 from datetime import date
 from datetime import date, datetime
 from .models import SubmissionStatus
+from .models import ResourceStatus
 
 # --- Shared Pydantic v2 config ---
 model_config = ConfigDict(from_attributes=True)
@@ -56,11 +57,12 @@ class Employee(EmployeeBase):
 class EquipmentBase(BaseModel):
     id: str
     name: str
-    type: str
+    category: str  # <--- THIS IS THE FIX: Changed from 'type' to 'category'
     status: str
     department: Optional[str] = None
     category_number: Optional[str] = None
     vin_number: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True)
 
 class EquipmentCreate(EquipmentBase): 
     pass
@@ -104,29 +106,59 @@ class Vendor(VendorBase):
 # ===============================
 #         JOB PHASES
 # ===============================
+# In backend/schemas.py
+
+# ... (other imports and schemas)
+
+# ✅ ADD THIS: A schema to represent a single, nested PhaseCode object in the response.
+class PhaseCode(BaseModel):
+    id: int
+    code: str
+    description: Optional[str] = None
+    unit: Optional[str] = None
+
+    class Config:
+        orm_mode = True
+
+# This schema is for CREATING a JobPhase. It correctly uses a list of strings.
 class JobPhaseBase(BaseModel):
     job_code: str
     contract_no: Optional[str] = None
     job_description: Optional[str] = None
     project_engineer: Optional[str] = None
     jurisdiction: Optional[str] = None
-    status: str = "Active"
-    phase_codes: List[str] = []
+    status: ResourceStatus = ResourceStatus.ACTIVE
+    phase_codes: List[str] = []  # list of string codes sent from frontend
+
 
 class JobPhaseCreate(JobPhaseBase):
     pass
 
+#class JobPhaseUpdate(BaseModel):
 class JobPhaseUpdate(BaseModel):
+
     contract_no: Optional[str] = None
     job_description: Optional[str] = None
     project_engineer: Optional[str] = None
     jurisdiction: Optional[str] = None
-    status: Optional[str] = None
+    status: Optional[ResourceStatus] = None
     phase_codes: Optional[List[str]] = None
 
-class JobPhase(JobPhaseBase):
+
+class JobPhase(BaseModel):
     id: int
-    model_config = model_config
+    job_code: str
+    contract_no: Optional[str] = None
+    job_description: Optional[str] = None
+    project_engineer: Optional[str] = None
+    jurisdiction: Optional[str] = None
+    status: ResourceStatus
+    phase_codes: List[PhaseCode] = []
+
+    class Config:
+        orm_mode = True
+
+# ... (JobPhase response schema)
 class DumpingSiteBase(BaseModel):
     id: str
     name: str
@@ -147,11 +179,13 @@ class DumpingSite(DumpingSiteBase):
 # ===============================
 class CrewMappingCreate(BaseModel):
     foreman_id: int
-    employee_ids: List[str]
-    equipment_ids: List[str]
-    material_ids: Optional[List[int]] = []
-    vendor_ids: Optional[List[int]] = []
-    dumping_site_ids: Optional[List[int]] = []  # ✅ ADD THIS LINE
+    employee_ids: List[str] = []
+    equipment_ids: List[str] = []
+    material_ids: List[int] = []
+    vendor_ids: List[int] = []
+    dumping_site_ids: List[str] = [] # Should be list of strings to match model
+    status: Optional[str] = "Active"
+
 
 class CrewMapping(BaseModel):
     id: int
@@ -161,8 +195,9 @@ class CrewMapping(BaseModel):
     material_ids: List[int]
     vendor_ids: List[int]
     dumping_site_ids: List[str] = []
-
+    status: Optional[str] = "Active"  # ✅ Add this line
     model_config = model_config
+
 
 
     @field_validator(
@@ -197,14 +232,18 @@ class CrewMapping(BaseModel):
         return [int(v)] if is_int_field else [str(v)]
         
 class CrewMappingResponse(BaseModel):
-    foreman_id: Optional[int] = None
-    employees: List[Employee]
-    equipment: List[Equipment]
-    materials: List[Material]
-    vendors: List[Vendor]
+    id: int
+    foreman_id: int
+    status: Optional[str]
+
+    # These fields match the SQLAlchemy relationship names
+    employees: List[Employee] = []
+    equipment: List[Equipment] = []
+    materials: List[Material] = []
+    vendors: List[Vendor] = []
     dumping_sites: List[DumpingSite] = []
 
-    model_config = model_config
+    model_config = ConfigDict(from_attributes=True)
 
 # ===============================
 #         TIMESHEETS
@@ -232,7 +271,7 @@ class TimesheetBase(BaseModel):
     data: Dict[str, Any]
 
 class TimesheetCreate(TimesheetBase):
-    status: str = "Pending"
+    status: str = "PENDING"  # <--- PROBLEM: Uppercase default value
     job_phase_id: Optional[int] = None
 
 
@@ -260,7 +299,6 @@ class Timesheet(BaseModel):
     date: date
     timesheet_name: Optional[str]
     data: Dict[str, Any]
-    sent: bool                  # <-- ADD THIS FIELD
     status: str                 # <-- ADD THIS FIELD
     files: List[TimesheetFile] = []
     
@@ -275,7 +313,6 @@ class TimesheetResponse(BaseModel):
     foreman_id: int
     foreman_name: str
     data: Dict[str, Any]
-    sent: bool
     job_name: str
     model_config = model_config
 

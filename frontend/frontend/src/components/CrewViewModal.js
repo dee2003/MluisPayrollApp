@@ -1,24 +1,33 @@
-// src/components/admin/CrewViewModal.js
 import React from 'react';
 
 const CrewViewModal = ({ crew, allResources, onClose }) => {
-    // MODIFIED: Destructure `dumping_sites` from allResources
+    // Destructure all possible resources from the allResources prop
     const { users, employees, equipment, materials, vendors, dumping_sites } = allResources;
 
+    // Helper function to safely find and display the foreman's name
     const getForemanName = (foremanId) => {
+        if (!users || users.length === 0) return 'Loading...';
         const foreman = users.find(u => u.id === foremanId);
         return foreman ? `${foreman.first_name} ${foreman.last_name}` : 'N/A';
     };
+    
+    // This generalized helper function takes a list of resource objects
+    // and renders their names in a list.
+    const renderResourceList = (resources, nameKey = 'name') => {
+        // If the resources array is missing or empty, display "None".
+        if (!resources || resources.length === 0) {
+            return <li>None</li>;
+        }
 
-    const getResourceDetails = (ids, resourceList, nameKey = 'name') => {
-        if (!ids || ids.length === 0) return <li>None</li>;
-        return ids.map(id => {
-            const resource = resourceList.find(r => r.id === id);
-            // This logic correctly handles employees vs. other resources
+        // Map over the array of resource objects
+        return resources.map(resource => {
+            // Handle the special case for employees, who have first_name and last_name
             const displayName = nameKey === 'employee'
-                ? `${resource?.first_name} ${resource?.last_name}`
-                : resource?.[nameKey];
-            return <li key={id}>{displayName || `Unknown ID: ${id}`}</li>;
+                ? `${resource.first_name} ${resource.last_name}`
+                : resource[nameKey];
+            
+            // Return a list item with the resource's name
+            return <li key={resource.id}>{displayName || `Unknown Resource`}</li>;
         });
     };
 
@@ -26,32 +35,45 @@ const CrewViewModal = ({ crew, allResources, onClose }) => {
         <div className="modal">
             <div className="modal-content">
                 <div className="modal-header">
-                    <h3>Crew Details: {getForemanName(crew.foreman_id)}</h3>
+                    {/* Add a guard to ensure 'crew' is loaded before accessing its properties */}
+                    <h3>Crew Details: {crew && getForemanName(crew.foreman_id)}</h3>
                     <button onClick={onClose} className="btn-close">×</button>
                 </div>
-                <div className="crew-view-details">
-                    <div>
-                        <h4>Employees</h4>
-                        <ul>{getResourceDetails(crew.employee_ids, employees, 'employee')}</ul>
+
+                {/* Main guard: Only render the details if the 'crew' object exists */}
+                {crew ? (
+                    <div className="crew-view-details">
+                        <div>
+                            <h4>Employees</h4>
+                            {/* Pass the array of employee objects from the crew prop */}
+                            <ul>{renderResourceList(crew.employees, 'employee')}</ul>
+                        </div>
+                        <div>
+                            <h4>Equipment</h4>
+                            {/* Pass the array of equipment objects */}
+                            <ul>{renderResourceList(crew.equipment)}</ul>
+                        </div>
+                        <div>
+                            <h4>Materials</h4>
+                            {/* Pass the array of material objects */}
+                            <ul>{renderResourceList(crew.materials)}</ul>
+                        </div>
+                        <div>
+                            <h4>Work Performed</h4>
+                            {/* Pass the array of vendor objects */}
+                            <ul>{renderResourceList(crew.vendors)}</ul>
+                        </div>
+                        <div>
+                            <h4>Dumping Sites</h4>
+                            {/* Pass the array of dumping site objects */}
+                            <ul>{renderResourceList(crew.dumping_sites)}</ul>
+                        </div>
                     </div>
-                    <div>
-                        <h4>Equipment</h4>
-                        <ul>{getResourceDetails(crew.equipment_ids, equipment)}</ul>
-                    </div>
-                    <div>
-                        <h4>Materials</h4>
-                        <ul>{getResourceDetails(crew.material_ids, materials)}</ul>
-                    </div>
-                    <div>
-                        <h4>Work Performed</h4>
-                        <ul>{getResourceDetails(crew.vendor_ids, vendors)}</ul>
-                    </div>
-                    {/* NEW: Section to display assigned dumping sites */}
-                    <div>
-                        <h4>Dumping Sites</h4>
-                        <ul>{getResourceDetails(crew.dumping_site_ids, dumping_sites)}</ul>
-                    </div>
-                </div>
+                ) : (
+                    // Display a loading message if the crew data is not yet available
+                    <p>Loading crew details...</p>
+                )}
+
                 <div className="modal-actions">
                     <button onClick={onClose} className="btn btn-outline">Close</button>
                 </div>

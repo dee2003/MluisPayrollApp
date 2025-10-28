@@ -1,4 +1,4 @@
-# In a file like crud.py or utils.py
+#  or utils.py
 from collections import defaultdict
 from sqlalchemy.orm import Session
 from . import models

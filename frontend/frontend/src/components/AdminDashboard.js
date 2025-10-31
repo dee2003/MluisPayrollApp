@@ -819,7 +819,8 @@ const JobWithPhasesModal = ({ mode, job, onSave, onClose, showNotification }) =>
     const [jobDescription, setJobDescription] = useState(job?.job_description || "");
     const [projectEngineer, setProjectEngineer] = useState(job?.project_engineer || "");
     const [jurisdiction, setJurisdiction] = useState(job?.jurisdiction || "");
-    
+const [projectEngineerId, setProjectEngineerId] = useState('');
+
     // ✅ FIX: Ensure status is always handled in lowercase for the backend
     const [status, setStatus] = useState(job?.status?.toLowerCase() || "active"); 
     
@@ -827,6 +828,14 @@ const JobWithPhasesModal = ({ mode, job, onSave, onClose, showNotification }) =>
     const [phases, setPhases] = useState(job?.phases || []);
     const [editIdx, setEditIdx] = useState(null);
     const fixedPhases = ["Admin", "S&SL", "Vacation"];
+ const [engineers, setEngineers] = useState([]);
+
+useEffect(() => {
+  fetch("http://localhost:8000/api/users?role=Project%20Engineer")
+    .then((res) => res.json())
+    .then((data) => setEngineers(data))
+    .catch((err) => console.error("Error fetching engineers:", err));
+}, []);
 
     // ... (Your handleAddPhase, handleEditPhase, handleDeletePhase functions remain the same)
     const handleAddPhase = () => {
@@ -864,6 +873,8 @@ const JobWithPhasesModal = ({ mode, job, onSave, onClose, showNotification }) =>
             contract_no: contractNo.trim(),
             job_description: jobDescription.trim(),
             project_engineer: projectEngineer.trim(),
+            project_engineer_id: projectEngineerId,  // id
+
             jurisdiction: jurisdiction.trim(),
             status: status, // This is now guaranteed to be lowercase
             phase_codes: finalPhaseStrings // The key is now 'phase_codes'
@@ -877,7 +888,35 @@ const JobWithPhasesModal = ({ mode, job, onSave, onClose, showNotification }) =>
             <div className="form-grid">
                 <div className="form-group"><label>Job Code</label><input type="text" value={jobCode} onChange={(e) => setJobCode(e.target.value)} disabled={mode === "edit"} className="form-control" required /></div>
                 <div className="form-group"><label>Contract No.</label><input type="text" value={contractNo} onChange={(e) => setContractNo(e.target.value)} className="form-control" /></div>
-                <div className="form-group"><label>Project Engineer</label><input type="text" value={projectEngineer} onChange={(e) => setProjectEngineer(e.target.value)} className="form-control" /></div>
+<div className="form-group">
+  <label>Project Engineer</label>
+  <select
+    value={projectEngineerId || ''}   // use the engineer ID for selection
+    onChange={(e) => {
+      const selectedId = e.target.value;
+      const selectedEngineer = engineers.find(
+        (eng) => eng.id === parseInt(selectedId)
+      );
+
+      // store both ID and name in state
+      setProjectEngineerId(selectedId);
+      setProjectEngineer(
+        selectedEngineer
+          ? `${selectedEngineer.first_name} ${selectedEngineer.last_name}`
+          : ''
+      );
+    }}
+    className="form-control"
+  >
+    <option value="">Select Project Engineer</option>
+    {engineers.map((eng) => (
+      <option key={eng.id} value={eng.id}>
+        {eng.first_name} {eng.last_name}
+      </option>
+    ))}
+  </select>
+</div>
+
                 <div className="form-group"><label>Jurisdiction</label><input type="text" value={jurisdiction} onChange={(e) => setJurisdiction(e.target.value)} className="form-control" /></div>
                 <div className="form-group full-width"><label>Job Description</label><textarea value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} className="form-control" rows="3"></textarea></div>
                 
@@ -974,6 +1013,7 @@ const AdminDashboard = ({ data: initialData, onLogout }) => {
     const [isResizing, setIsResizing] = useState(false);
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [currentDate, setCurrentDate] = useState("");
+
 
     useEffect(() => {
         const fetchData = async () => {

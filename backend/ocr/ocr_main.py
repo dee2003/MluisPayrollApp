@@ -210,48 +210,127 @@ def recognize_line(image_path):
 TICKETS_DIR = r"C:\Mluis_App\mluis_app\backend\tickets"
 os.makedirs(TICKETS_DIR, exist_ok=True)
 
+# @router.post("/scan")
+# async def scan_ticket(
+#     foreman_id: int = Form(...),
+#     file: UploadFile = File(...),
+#     db: Session = Depends(get_db),
+# ):
+#     # ✅ 1. Verify foreman
+#     foreman = db.query(models.User).filter(models.User.id == foreman_id).first()
+#     if not foreman:
+#         raise HTTPException(status_code=404, detail="Foreman not found")
+
+#     # ✅ 2. Find active timesheet
+#     timesheet = (
+#         db.query(models.Timesheet)
+#         .filter(
+#             models.Timesheet.foreman_id == foreman_id,
+#             models.Timesheet.status.in_(["PENDING", "DRAFT"])
+#         )
+#         .first()
+#     )
+#     if not timesheet:
+#         raise HTTPException(status_code=404, detail="No active timesheet found")
+
+#     # ✅ 3. Save image file safely
+#     file_path = os.path.join(TICKETS_DIR, file.filename)
+#     with open(file_path, "wb") as f:
+#         f.write(await file.read())
+
+#     # ✅ 4. Run YOLO + OCR
+#     image_pil = Image.open(file_path).convert("RGB")
+#     table_result = extract_table_data_yolo(image_pil, "debug_dir")
+#     extracted_text = json.dumps(table_result["extracted_table"]) if table_result else ""
+
+#     # ✅ 5. Save URL (NOT absolute path)
+#     relative_url = f"/media/tickets/{file.filename}"
+
+#     # ✅ 6. Save ticket in DB
+#     ticket = models.Ticket(
+#         foreman_id=foreman_id,
+#         job_phase_id=timesheet.job_phase_id,
+#         timesheet_id=timesheet.id,
+#         image_path=relative_url,  # <-- only the URL
+#         extracted_text=extracted_text
+#     )
+
+#     db.add(ticket)
+#     db.commit()
+#     db.refresh(ticket)
+
+#     # ✅ 7. Return correct response
+#     return {
+#         "message": "Ticket scanned successfully",
+#         "ticket_id": ticket.id,
+#         "timesheet_id": timesheet.id,
+#         "file_url": relative_url
+#     }
+
+
 @router.post("/scan")
 async def scan_ticket(
     foreman_id: int = Form(...),
     file: UploadFile = File(...),
+    timesheet_id: int | None = Form(None),
     db: Session = Depends(get_db),
 ):
-    # ✅ 1. Verify foreman
+    # 1. Verify foreman
     foreman = db.query(models.User).filter(models.User.id == foreman_id).first()
     if not foreman:
         raise HTTPException(status_code=404, detail="Foreman not found")
 
-    # ✅ 2. Find active timesheet
-    timesheet = (
-        db.query(models.Timesheet)
-        .filter(
-            models.Timesheet.foreman_id == foreman_id,
-            models.Timesheet.status.in_(["PENDING", "DRAFT"])
-        )
-        .first()
-    )
+    # 2. Resolve timesheet
+    timesheet = None
+    if timesheet_id:
+        timesheet = db.query(models.Timesheet).filter(models.Timesheet.id == timesheet_id).first()
     if not timesheet:
-        raise HTTPException(status_code=404, detail="No active timesheet found")
+        # pick the best timesheet: exact date (today) or most recent date <= today, else latest
+        today_str = datetime.utcnow().date()  # use UTC or use local if preferred
+        # fetch all timesheets for foreman ordered desc by date
+        ts_list = (
+            db.query(models.Timesheet)
+            .filter(models.Timesheet.foreman_id == foreman_id)
+            .order_by(models.Timesheet.date.desc())
+            .all()
+        )
+        if ts_list:
+            # try exact match to today's date
+            for ts in ts_list:
+                if ts.date == today_str:
+                    timesheet = ts
+                    break
+            # else pick the most recent with date <= today
+            if not timesheet:
+                for ts in ts_list:
+                    if ts.date <= today_str:
+                        timesheet = ts
+                        break
+            # fallback to latest
+            timesheet = timesheet or ts_list[0]
 
-    # ✅ 3. Save image file safely
+    if not timesheet:
+        raise HTTPException(status_code=404, detail="No timesheet available for this foreman")
+
+    # 3. Save image file safely (same as before)
     file_path = os.path.join(TICKETS_DIR, file.filename)
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
-    # ✅ 4. Run YOLO + OCR
+    # 4. Run YOLO + OCR
     image_pil = Image.open(file_path).convert("RGB")
     table_result = extract_table_data_yolo(image_pil, "debug_dir")
     extracted_text = json.dumps(table_result["extracted_table"]) if table_result else ""
 
-    # ✅ 5. Save URL (NOT absolute path)
+    # 5. Save URL (NOT absolute path)
     relative_url = f"/media/tickets/{file.filename}"
 
-    # ✅ 6. Save ticket in DB
+    # 6. Save ticket in DB and link to resolved timesheet
     ticket = models.Ticket(
         foreman_id=foreman_id,
         job_phase_id=timesheet.job_phase_id,
         timesheet_id=timesheet.id,
-        image_path=relative_url,  # <-- only the URL
+        image_path=relative_url,
         extracted_text=extracted_text
     )
 
@@ -259,16 +338,12 @@ async def scan_ticket(
     db.commit()
     db.refresh(ticket)
 
-    # ✅ 7. Return correct response
     return {
         "message": "Ticket scanned successfully",
         "ticket_id": ticket.id,
         "timesheet_id": timesheet.id,
         "file_url": relative_url
     }
-
-
-
 @router.get("/by-foreman/{foreman_id}")
 def get_tickets_by_foreman(foreman_id: int, db: Session = Depends(database.get_db)):
     """

@@ -27,6 +27,7 @@ interface ItemType {
   timesheet_count: number;
   ticket_count: number;
 }
+
 interface SectionType {
   title: string;
   data: ItemType[];
@@ -54,60 +55,71 @@ const PEDashboard = () => {
   const [data, setData] = useState<ItemType[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-const loadDashboard = useCallback(async () => {
-  try {
-    setLoading(true);
-    const res = await apiClient.get('/api/project-engineer/dashboard', {
-      params: { project_engineer_id: user?.id },
-    });
 
-    const { timesheets = [], tickets = [] } = res.data;
+  const loadDashboard = useCallback(async () => {
+    // 🛑 Don’t call API if user is not logged in
+    if (!user?.id) return;
 
-    const combinedMap: Record<string, ItemType> = {};
+    try {
+      setLoading(true);
+      const res = await apiClient.get('/api/project-engineer/dashboard', {
+        params: { project_engineer_id: user.id },
+      });
 
-    timesheets.forEach((t: any) => {
-      const key = `${t.date}-${t.foreman_name}-${t.job_code}`;
-      if (!combinedMap[key]) {
-        combinedMap[key] = {
-          date: t.date,
-          foreman_id: t.foreman_id || 0,
-          foreman_name: t.foreman_name || '',
-          job_code: t.job_code || '',
-          timesheet_count: 0,
-          ticket_count: 0,
-        };
+      const { timesheets = [], tickets = [] } = res.data;
+      const combinedMap: Record<string, ItemType> = {};
+
+      timesheets.forEach((t: any) => {
+        const key = `${t.date}-${t.foreman_name}-${t.job_code}`;
+        if (!combinedMap[key]) {
+          combinedMap[key] = {
+            date: t.date,
+            foreman_id: t.foreman_id || 0,
+            foreman_name: t.foreman_name || '',
+            job_code: t.job_code || '',
+            timesheet_count: 0,
+            ticket_count: 0,
+          };
+        }
+        combinedMap[key].timesheet_count += 1;
+      });
+
+      tickets.forEach((tk: any) => {
+        const key = `${tk.date}-${tk.foreman_name}-${tk.job_code}`;
+        if (!combinedMap[key]) {
+          combinedMap[key] = {
+            date: tk.date,
+            foreman_id: tk.foreman_id || 0,
+            foreman_name: tk.foreman_name || '',
+            job_code: tk.job_code || '',
+            timesheet_count: 0,
+            ticket_count: 0,
+          };
+        }
+        combinedMap[key].ticket_count += 1;
+      });
+
+      setData(Object.values(combinedMap));
+    } catch (err: any) {
+      console.error('Load PE dashboard error', err);
+      // Ignore error after logout (401 or canceled)
+      if (err.response?.status !== 401) {
+        Alert.alert('Error', err.response?.data?.detail || 'Failed to load dashboard data');
       }
-      combinedMap[key].timesheet_count += 1;
-    });
-
-    tickets.forEach((tk: any) => {
-      const key = `${tk.date}-${tk.foreman_name}-${tk.job_code}`;
-      if (!combinedMap[key]) {
-        combinedMap[key] = {
-          date: tk.date,
-          foreman_id: tk.foreman_id || 0,
-          foreman_name: tk.foreman_name || '',
-          job_code: tk.job_code || '',
-          timesheet_count: 0,
-          ticket_count: 0,
-        };
-      }
-      combinedMap[key].ticket_count += 1;
-    });
-
-    setData(Object.values(combinedMap));
-  } catch (err: any) {
-    console.error('Load PE dashboard error', err);
-    Alert.alert('Error', err.response?.data?.detail || 'Failed to load dashboard data');
-  } finally {
-    setLoading(false);
-  }
-}, [user?.id]);
-
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id]);
 
   useEffect(() => {
-    loadDashboard();
-  }, [loadDashboard]);
+    let active = true;
+    (async () => {
+      if (user?.id && active) await loadDashboard();
+    })();
+    return () => {
+      active = false; // cleanup to prevent setState on unmounted
+    };
+  }, [loadDashboard, user?.id]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -125,11 +137,18 @@ const loadDashboard = useCallback(async () => {
       .map(([title, data]) => ({ title, data }));
   }, [data]);
 
-  const handleLogout = () => {
-    logout();
-    navigation.getParent()?.dispatch(
-      CommonActions.reset({ index: 0, routes: [{ name: 'Login' as keyof RootStackParamList }] })
-    );
+  const handleLogout = async () => {
+    try {
+      await logout(); // clear context + AsyncStorage
+    } finally {
+      // navigate only after logout is done
+      navigation.getParent()?.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: 'Login' as keyof RootStackParamList }],
+        })
+      );
+    }
   };
 
   if (loading && !refreshing) {
@@ -159,7 +178,11 @@ const loadDashboard = useCallback(async () => {
           sections={sections}
           keyExtractor={item => item.foreman_id + '-' + item.date}
           refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={THEME_COLORS.primary} />
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={THEME_COLORS.primary}
+            />
           }
           renderSectionHeader={({ section }) => (
             <View style={styles.dateGroupContainer}>
@@ -177,7 +200,11 @@ const loadDashboard = useCallback(async () => {
             <View style={styles.card}>
               <View style={styles.foremanInfoRow}>
                 <Text style={styles.foremanName}>
-                  <Ionicons name="person-circle-outline" size={20} color={THEME_COLORS.contentLight} />{' '}
+                  <Ionicons
+                    name="person-circle-outline"
+                    size={20}
+                    color={THEME_COLORS.contentLight}
+                  />{' '}
                   {item.foreman_name}
                 </Text>
                 {item.job_code && <Text style={styles.jobCodeRight}>Job: {item.job_code}</Text>}
@@ -193,7 +220,11 @@ const loadDashboard = useCallback(async () => {
                   })
                 }>
                 <Text style={styles.actionLabel}>Timesheets ({item.timesheet_count})</Text>
-                <Ionicons name="chevron-forward-outline" size={22} color={THEME_COLORS.subtleLight} />
+                <Ionicons
+                  name="chevron-forward-outline"
+                  size={22}
+                  color={THEME_COLORS.subtleLight}
+                />
               </TouchableOpacity>
 
               <View style={styles.divider} />
@@ -208,15 +239,25 @@ const loadDashboard = useCallback(async () => {
                   })
                 }>
                 <Text style={styles.actionLabel}>Tickets ({item.ticket_count})</Text>
-                <Ionicons name="chevron-forward-outline" size={22} color={THEME_COLORS.subtleLight} />
+                <Ionicons
+                  name="chevron-forward-outline"
+                  size={22}
+                  color={THEME_COLORS.subtleLight}
+                />
               </TouchableOpacity>
             </View>
           )}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Ionicons name="file-tray-stacked-outline" size={60} color={THEME_COLORS.brandStone} />
+              <Ionicons
+                name="file-tray-stacked-outline"
+                size={60}
+                color={THEME_COLORS.brandStone}
+              />
               <Text style={styles.emptyText}>No submissions found.</Text>
-              <Text style={styles.emptySubText}>Submissions from supervisors will appear here.</Text>
+              <Text style={styles.emptySubText}>
+                Submissions from supervisors will appear here.
+              </Text>
             </View>
           }
         />

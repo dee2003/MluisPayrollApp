@@ -99,74 +99,74 @@ def create_job_phase(job_phase: schemas.JobPhaseCreate, db: Session = Depends(da
 
 # backend/main.py
 
-@job_phase_router.put("/{job_code}", response_model=schemas.JobPhase)
-def update_job_phase(job_code: str, job_update: schemas.JobPhaseUpdate, db: Session = Depends(database.get_db)):
-    # Use selectinload to efficiently fetch the job and its related phase codes
-    db_job = db.query(models.JobPhase).options(
-        selectinload(models.JobPhase.phase_codes)
-    ).filter(models.JobPhase.job_code == job_code).first()
+# @job_phase_router.put("/{job_code}", response_model=schemas.JobPhase)
+# def update_job_phase(job_code: str, job_update: schemas.JobPhaseUpdate, db: Session = Depends(database.get_db)):
+#     # Use selectinload to efficiently fetch the job and its related phase codes
+#     db_job = db.query(models.JobPhase).options(
+#         selectinload(models.JobPhase.phase_codes)
+#     ).filter(models.JobPhase.job_code == job_code).first()
 
-    if not db_job:
-        raise HTTPException(status_code=404, detail="Job not found")
+#     if not db_job:
+#         raise HTTPException(status_code=404, detail="Job not found")
 
-    # Get the update data from the Pydantic model
-    update_data = job_update.dict(exclude_unset=True)
+#     # Get the update data from the Pydantic model
+#     update_data = job_update.dict(exclude_unset=True)
 
-    # ✅ Handle the phase_codes relationship separately
-    if "phase_codes" in update_data:
-        # Pop the list of strings from the update data so the loop doesn't process it
-        new_phase_code_strings = update_data.pop("phase_codes")
+#     # ✅ Handle the phase_codes relationship separately
+#     if "phase_codes" in update_data:
+#         # Pop the list of strings from the update data so the loop doesn't process it
+#         new_phase_code_strings = update_data.pop("phase_codes")
         
-        # Clear the existing collection of PhaseCode objects.
-        # The `cascade="all, delete-orphan"` setting in your model will handle deleting them from the DB.
-        db_job.phase_codes.clear()
+#         # Clear the existing collection of PhaseCode objects.
+#         # The `cascade="all, delete-orphan"` setting in your model will handle deleting them from the DB.
+#         db_job.phase_codes.clear()
 
-        # Create new PhaseCode objects from the list of strings
-        for code_str in new_phase_code_strings:
-            new_phase = models.PhaseCode(
-                code=code_str,
-                description=f"Phase {code_str}",  # Or fetch existing descriptions if needed
-                unit="unit"
-            )
-            db_job.phase_codes.append(new_phase)
+#         # Create new PhaseCode objects from the list of strings
+#         for code_str in new_phase_code_strings:
+#             new_phase = models.PhaseCode(
+#                 code=code_str,
+#                 description=f"Phase {code_str}",  # Or fetch existing descriptions if needed
+#                 unit="unit"
+#             )
+#             db_job.phase_codes.append(new_phase)
 
-    # Update all other simple attributes (contract_no, description, etc.)
-    for key, value in update_data.items():
-        setattr(db_job, key, value)
+#     # Update all other simple attributes (contract_no, description, etc.)
+#     for key, value in update_data.items():
+#         setattr(db_job, key, value)
 
-    db.commit()
-    db.refresh(db_job)
+#     db.commit()
+#     db.refresh(db_job)
     
-    return db_job
+#     return db_job
 
 
-@job_phase_router.get("/", response_model=List[schemas.JobPhase])
-def get_all_job_phases(db: Session = Depends(database.get_db)):
-    # Use .options(selectinload(...)) to eagerly load the relationship data.
-    return db.query(models.JobPhase).options(
-        selectinload(models.JobPhase.phase_codes)
-    ).all()
+# @job_phase_router.get("/", response_model=List[schemas.JobPhase])
+# def get_all_job_phases(db: Session = Depends(database.get_db)):
+#     # Use .options(selectinload(...)) to eagerly load the relationship data.
+#     return db.query(models.JobPhase).options(
+#         selectinload(models.JobPhase.phase_codes)
+#     ).all()
 
 
-@job_phase_router.get("/{job_code}", response_model=schemas.JobPhase)
-def get_job_phases(job_code: str, db: Session = Depends(database.get_db)):
-    db_job = db.query(models.JobPhase).filter(models.JobPhase.job_code == job_code).first()
-    if not db_job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    return db_job
+# @job_phase_router.get("/{job_code}", response_model=schemas.JobPhase)
+# def get_job_phases(job_code: str, db: Session = Depends(database.get_db)):
+#     db_job = db.query(models.JobPhase).filter(models.JobPhase.job_code == job_code).first()
+#     if not db_job:
+#         raise HTTPException(status_code=404, detail="Job not found")
+#     return db_job
 
-@job_phase_router.delete("/{job_code}", status_code=status.HTTP_200_OK)
-def delete_job(job_code: str, db: Session = Depends(database.get_db)):
-    db_job = db.query(models.JobPhase).filter(models.JobPhase.job_code == job_code).first()
-    if not db_job:
-        raise HTTPException(status_code=404, detail="Job not found")
-    db.delete(db_job)
-    db.commit()
-    return {"ok": True, "detail": f"Job '{job_code}' and all its phases deleted"}
+# @job_phase_router.delete("/{job_code}", status_code=status.HTTP_200_OK)
+# def delete_job(job_code: str, db: Session = Depends(database.get_db)):
+#     db_job = db.query(models.JobPhase).filter(models.JobPhase.job_code == job_code).first()
+#     if not db_job:
+#         raise HTTPException(status_code=404, detail="Job not found")
+#     db.delete(db_job)
+#     db.commit()
+#     return {"ok": True, "detail": f"Job '{job_code}' and all its phases deleted"}
 
-@job_phase_router.get("/phase-codes", response_model=List[schemas.PhaseCode])
-def get_all_phase_codes(db: Session = Depends(database.get_db)):
-    return db.query(models.PhaseCode).all()
+# @job_phase_router.get("/phase-codes", response_model=List[schemas.PhaseCode])
+# def get_all_phase_codes(db: Session = Depends(database.get_db)):
+#     return db.query(models.PhaseCode).all()
 # -------------------------------
 # Crew Mapping Router with Soft Delete
 # -------------------------------
@@ -357,7 +357,7 @@ for item in crud_models:
 # -------------------------------
 # Include All Other Routers
 # -------------------------------
-app.include_router(job_phase_router)
+# app.include_router(job_phase_router)
 app.include_router(crew_mapping_router)
 app.include_router(timesheet.router)
 app.include_router(equipment.router)
@@ -366,6 +366,7 @@ app.include_router(tickets.router)
 app.include_router(review.router)
 app.include_router(project_engineer.router)
 app.include_router(ocr_main.router)
+app.include_router(job_phases.router)  # ✅ make sure this is here
 
 # -------------------------------
 # Auth Router

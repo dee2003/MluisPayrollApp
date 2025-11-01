@@ -388,6 +388,7 @@ from datetime import date as date_type
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List, Any, Dict
+from ..schemas import SubmissionStatus
 
 router = APIRouter(prefix="/api/review", tags=["Supervisor Review"])
 
@@ -506,8 +507,24 @@ def submit_all_for_date(payload: SupervisorSubmitPayload, db: Session = Depends(
     return {"message": "Timesheets sent to Project Engineers successfully."}
 
 
+# @router.get("/submitted-dates", response_model=List[date_type])
+# def get_submitted_dates(db: Session = Depends(get_db)):
+#     result = (
+#         db.query(models.SupervisorSubmission.date)
+#         .filter(models.SupervisorSubmission.status == "SubmittedToEngineer")
+#         .distinct()
+#         .order_by(models.SupervisorSubmission.date.desc())
+#         .all()
+#     )
+#     return [r.date for r in result]
+
+
+
 @router.get("/submitted-dates", response_model=List[date_type])
 def get_submitted_dates(db: Session = Depends(get_db)):
+    """
+    Fetch all distinct dates that have been submitted to the engineer.
+    """
     result = (
         db.query(models.SupervisorSubmission.date)
         .filter(models.SupervisorSubmission.status == "SubmittedToEngineer")
@@ -516,6 +533,28 @@ def get_submitted_dates(db: Session = Depends(get_db)):
         .all()
     )
     return [r.date for r in result]
+
+
+@router.get("/supervisor_submissions/by-date")
+def get_submission_by_date(date: str, db: Session = Depends(get_db)):
+    try:
+        # Convert to Python date object
+        query_date = datetime.strptime(date, "%Y-%m-%d").date()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format, expected YYYY-MM-DD")
+
+    submission = (
+        db.query(models.SupervisorSubmission)
+        .filter(models.SupervisorSubmission.date == query_date)
+        .first()
+    )
+
+    if not submission:
+        raise HTTPException(status_code=404, detail="No submission found for this date")
+
+    return submission
+
+
 @router.get("/status-for-date")
 def get_status_for_date(date: str, supervisor_id: int, db: Session = Depends(get_db)):
     record = (
@@ -587,50 +626,62 @@ def send_timesheet_to_engineer(timesheet_id: int, db: Session = Depends(get_db))
 
     print(f"✅ Timesheet {ts.id} sent to Project Engineer ID {project_engineer.id}")
     return ts
-# @router.get("/pe/timesheets", response_model=List[schemas.Timesheet])
-# def pe_list_timesheets(
-#     engineer_id: int = Query(...),
-#     date: Optional[str] = Query(None),
-#     foreman_id: Optional[int] = Query(None),
-#     db: Session = Depends(get_db),
-# ):
-#     q = (
-#         db.query(models.Timesheet)
-#         .join(models.JobPhase, models.Timesheet.job_phase_id == models.JobPhase.id)
-#         .filter(models.JobPhase.project_engineer_id == engineer_id)
-#     )
-#     if date:
-#         target_date = date_type.fromisoformat(date)
-#         q = q.filter(models.Timesheet.date == target_date)
-#     if foreman_id:
-#         q = q.filter(models.Timesheet.foreman_id == foreman_id)
+@router.get("/pe/timesheets")
+def get_pe_timesheets(foreman_id: int, date: str, db: Session = Depends(database.get_db)):
+    try:
+        target_date = date_type.fromisoformat(date)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
 
-#     # only return submitted/sent
-#     q = q.filter(models.Timesheet.status.in_([models.SubmissionStatus.SUBMITTED.value, models.SubmissionStatus.SENT.value]))
-#     return q.order_by(models.Timesheet.date.desc()).all()
+    timesheets = (
+        db.query(models.Timesheet)
+        .filter(
+            models.Timesheet.foreman_id == foreman_id,
+            models.Timesheet.date == target_date
+        )
+        .all()
+    )
 
+    if not timesheets:
+        raise HTTPException(status_code=404, detail="Timesheets not found for given date and foreman.")
 
-# # Helper endpoint: List tickets for a given engineer, date & foreman
-# @router.get("/pe/tickets", response_model=List[schemas.TicketSummary])
-# def pe_list_tickets(
-#     engineer_id: int = Query(...),
-#     date: Optional[str] = Query(None),
-#     foreman_id: Optional[int] = Query(None),
-#     db: Session = Depends(get_db),
-# ):
-#     q = (
-#         db.query(models.Ticket)
-#         .join(models.JobPhase, models.Ticket.job_phase_id == models.JobPhase.id)
-#         .filter(models.JobPhase.project_engineer_id == engineer_id)
-#     )
-#     if date:
-#         target_date = date_type.fromisoformat(date)
-#         q = q.filter(func.date(models.Ticket.created_at) == target_date)
-#     if foreman_id:
-#         q = q.filter(models.Ticket.foreman_id == foreman_id)
-
-#     q = q.filter(models.Ticket.status.in_([models.SubmissionStatus.SUBMITTED.value, models.SubmissionStatus.SENT.value]))
-#     return q.order_by(models.Ticket.created_at.desc()).all()
+    return [
+        {
+            "id": t.id,
+            "job_code": t.job_phase.job_code if t.job_phase else None,
+            "timesheet_name": t.timesheet_name,
+            "submitted_at": t.sent_date.isoformat() if t.sent_date else None,
+            "status": t.status,
+        }
+        for t in timesheets
+    ]
 
 
+# ---------------- PE Tickets ----------------
 
+@router.get("/pe/tickets")
+def get_pe_tickets(foreman_id: int, date: str, db: Session = Depends(get_db)):
+    from datetime import date as date_type
+    from backend.models import SubmissionStatus  # ensure this import exists
+
+    target_date = date_type.fromisoformat(date)
+
+    tickets = (
+        db.query(models.Ticket)
+        .filter(
+            models.Ticket.foreman_id == foreman_id,
+            cast(models.Ticket.created_at, Date) == target_date,
+            models.Ticket.status == SubmissionStatus.SUBMITTED
+        )
+        .all()
+    )
+
+    return [
+        {
+            "id": t.id,
+            "job_code": t.job_phase.job_code if t.job_phase else None,
+            "phase_code": t.phase_code.code if t.phase_code else None,  # ✅ show phase code
+            "image_path": t.image_path,
+        }
+        for t in tickets
+    ]

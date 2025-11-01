@@ -4,10 +4,8 @@ from typing import List
 from .. import models, schemas, database
 from ..database import get_db
 
-# -------------------------------
-# Job & Phase Management Router
-# -------------------------------
 router = APIRouter(prefix="/api/job-phases", tags=["Job Phases"])
+
 
 # ✅ Create Job Phase
 @router.post("/", response_model=schemas.JobPhase)
@@ -71,15 +69,6 @@ def update_job_phase(job_code: str, job_update: schemas.JobPhaseUpdate, db: Sess
     db.refresh(db_job)
     return db_job
 
-@router.get("/phase-codes", response_model=List[schemas.PhaseCode])
-def get_all_phase_codes(db: Session = Depends(get_db)):
-    """
-    Returns a list of all phase codes across all job phases.
-    Used for dropdowns or lookups in the frontend.
-    """
-    phase_codes = db.query(models.PhaseCode).all()
-    return phase_codes
-
 
 # ✅ Get all job phases
 @router.get("/", response_model=List[schemas.JobPhase])
@@ -89,13 +78,21 @@ def get_all_job_phases(db: Session = Depends(database.get_db)):
     ).all()
 
 
-# ✅ Get a single job phase
-@router.get("/{job_code}", response_model=schemas.JobPhase)
-def get_job_phases(job_code: str, db: Session = Depends(database.get_db)):
-    db_job = db.query(models.JobPhase).filter(models.JobPhase.job_code == job_code).first()
-    if not db_job:
+# ✅ ✅ MOVE THIS SECTION UP (must come before /{job_code})
+# ✅ GET all phase codes (must be BEFORE /{job_code})
+@router.get("/phase-codes")
+def get_phase_codes(db: Session = Depends(get_db)):
+    phases = db.query(models.PhaseCode).all()
+    return phases
+
+
+# ✅ GET job by job_code
+@router.get("/{job_code}")
+def get_job_by_code(job_code: str, db: Session = Depends(get_db)):
+    job = db.query(models.JobPhase).filter(models.JobPhase.job_code == job_code).first()
+    if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    return db_job
+    return job
 
 
 # ✅ Delete job phase
@@ -107,6 +104,3 @@ def delete_job(job_code: str, db: Session = Depends(database.get_db)):
     db.delete(db_job)
     db.commit()
     return {"ok": True, "detail": f"Job '{job_code}' and all its phases deleted"}
-
-
-

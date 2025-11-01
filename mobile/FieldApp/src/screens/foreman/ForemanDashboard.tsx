@@ -367,29 +367,103 @@ const ForemanDashboard = ({ navigation }: { navigation: any }) => {
     }
   };
 
- const uploadScannedImage = async (uri: string) => {
+//  const uploadScannedImage = async (uri: string) => {
+//   try {
+//     // 1️⃣ Fetch timesheets for this foreman
+//     const timesheetRes = await fetch(`${API_BASE_URL}/api/timesheets/by-foreman/${user?.id}`);
+//     const timesheetData = await timesheetRes.json();
+
+//     if (!Array.isArray(timesheetData) || timesheetData.length === 0) {
+//       Alert.alert('No Timesheet Found', 'You have no active timesheet assigned.');
+//       setScreen('dashboard');
+//       return;
+//     }
+
+//     // 2️⃣ Find today's timesheet
+//     const today = new Date().toISOString().split('T')[0];
+//     const activeTimesheet = timesheetData.find(ts => ts.date === today);
+
+//     if (!activeTimesheet) {
+//       Alert.alert('No Timesheet Found', `No timesheet available for ${today}.`);
+//       setScreen('dashboard');
+//       return;
+//     }
+
+//     // 3️⃣ Prepare form data for OCR upload
+//     const formData = new FormData();
+//     formData.append('file', {
+//       uri,
+//       type: 'image/jpeg',
+//       name: `ticket_${Date.now()}.jpg`,
+//     } as any);
+//     formData.append('foreman_id', String(user?.id));
+//     formData.append('timesheet_id', String(activeTimesheet.id));
+//     formData.append('job_phase_id', String(activeTimesheet.job_phase_id || ''));
+//     formData.append('job_code', activeTimesheet.job_code || '');
+
+//     console.log('Uploading scan for timesheet:', activeTimesheet.id, activeTimesheet.job_code);
+
+//     // 4️⃣ Upload image to backend OCR endpoint
+//     const response = await fetch(`${API_BASE_URL}/api/ocr/scan`, {
+//       method: 'POST',
+//       body: formData,
+//     });
+
+//     const result = await response.json();
+//     if (response.ok) {
+//       Alert.alert('✅ Scan Successful', 'Ticket linked to today’s timesheet successfully.');
+//     } else {
+//       console.log('OCR Scan Failed:', result);
+//       Alert.alert('Scan Failed', result.detail || 'The server could not process the image.');
+//     }
+//   } catch (err) {
+//     console.error('Unexpected scan error:', err);
+//     Alert.alert('Error', 'Unexpected error while scanning.');
+//   } finally {
+//     setScreen('dashboard');
+//   }
+// };
+const uploadScannedImage = async (uri: string) => {
   try {
-    // 1️⃣ Fetch timesheets for this foreman
+    // 1) Fetch timesheets for this foreman
     const timesheetRes = await fetch(`${API_BASE_URL}/api/timesheets/by-foreman/${user?.id}`);
     const timesheetData = await timesheetRes.json();
 
     if (!Array.isArray(timesheetData) || timesheetData.length === 0) {
-      Alert.alert('No Timesheet Found', 'You have no active timesheet assigned.');
+      Alert.alert('No Timesheet Found', 'You have no timesheet records assigned.');
       setScreen('dashboard');
       return;
     }
 
-    // 2️⃣ Find today's timesheet
-    const today = new Date().toISOString().split('T')[0];
-    const activeTimesheet = timesheetData.find(ts => ts.date === today);
+    // 2) Determine scan date (use device date when scan happened)
+    const scanDate = new Date().toISOString().split('T')[0]; // e.g. '2025-10-21'
 
-    if (!activeTimesheet) {
-      Alert.alert('No Timesheet Found', `No timesheet available for ${today}.`);
+    // 3) Try to find timesheet with exact scan date
+    let selected = timesheetData.find((ts: any) => ts.date === scanDate);
+
+    // 4) If none, find most recent timesheet with date <= scanDate
+    if (!selected) {
+      // sort descending by date
+      const sorted = timesheetData
+        .slice()
+        .sort((a: any, b: any) => (a.date < b.date ? 1 : -1));
+      selected = sorted.find((ts: any) => ts.date <= scanDate) || sorted[0]; // fallback to latest
+    }
+
+    if (!selected) {
+      Alert.alert('No Timesheet Found', `No timesheet could be attached.`);
       setScreen('dashboard');
       return;
     }
 
-    // 3️⃣ Prepare form data for OCR upload
+    // Let the user know which timesheet will be used
+    Alert.alert(
+      'Using Timesheet',
+      `This ticket will be attached to timesheet dated ${selected.date} (ID: ${selected.id}).`,
+      [{ text: 'OK' }]
+    );
+
+    // 5) Prepare form data for OCR upload
     const formData = new FormData();
     formData.append('file', {
       uri,
@@ -397,13 +471,13 @@ const ForemanDashboard = ({ navigation }: { navigation: any }) => {
       name: `ticket_${Date.now()}.jpg`,
     } as any);
     formData.append('foreman_id', String(user?.id));
-    formData.append('timesheet_id', String(activeTimesheet.id));
-    formData.append('job_phase_id', String(activeTimesheet.job_phase_id || ''));
-    formData.append('job_code', activeTimesheet.job_code || '');
+    formData.append('timesheet_id', String(selected.id));
+    formData.append('job_phase_id', String(selected.job_phase_id || ''));
+    formData.append('job_code', selected.job_code || '');
 
-    console.log('Uploading scan for timesheet:', activeTimesheet.id, activeTimesheet.job_code);
+    console.log('Uploading scan for timesheet:', selected.id, selected.job_code);
 
-    // 4️⃣ Upload image to backend OCR endpoint
+    // 6) Upload image to backend OCR endpoint
     const response = await fetch(`${API_BASE_URL}/api/ocr/scan`, {
       method: 'POST',
       body: formData,
@@ -411,7 +485,7 @@ const ForemanDashboard = ({ navigation }: { navigation: any }) => {
 
     const result = await response.json();
     if (response.ok) {
-      Alert.alert('✅ Scan Successful', 'Ticket linked to today’s timesheet successfully.');
+      Alert.alert('✅ Scan Successful', `Ticket linked to timesheet ${selected.date}.`);
     } else {
       console.log('OCR Scan Failed:', result);
       Alert.alert('Scan Failed', result.detail || 'The server could not process the image.');
